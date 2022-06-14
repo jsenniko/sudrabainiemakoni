@@ -23,11 +23,19 @@ Uzstādām zvaigžņu nosakumu sarakstu un pikseļu koordinātu sarakstu. Nosauk
 ```
 cldim.setStarReferences(starnames, pixels)
 ```
+Ja zvaigžnu saraksts un pikseļu koordinātes dotas teksta failā, piemērs [šeit](../examples/TestCommandLine/js_202206120030_zvaigznes.txt), tad var to ielasīt izmantojot pandas bibliotēku šādi
+```
+df = pandas.read_csv(fails_ar_zvaigznu_sarakstu, sep='\t', header=None)
+starnames = df[0]
+pixels=np.array(df[[1,2]])
+cldim.setStarReferences(starnames, pixels)
+```
+
 Ja nepieciešams uzzīmēt ekvatoriālo koordinātu režģi uz attēla, tad vispirs jāiegūst attēlam piesaistīta WCS koordinātu sistēma
 ```
 cldim.GetWCS(sip_degree=2, fit_parameters={'projection':'TAN'})
 ```
-Tad ekvatoriālo koordinātu režģi uz attēla iegūst sekojoši, norādot katalogu, kurā noglabāt attēlu. Attēla vārds būs formā ekv_koord_{id}.jpg
+Tad ekvatoriālo koordinātu režģi uz attēla iegūst sekojoši, norādot katalogu, kurā noglabāt attēlu. Attēla vārds būs formā ekv_koord_{id}.jpg. ![Ekvatoriālo koordinātu režģis](../examples/TestCommandLine/ekv_coord_js_202206120030.jpg?raw=true)
 ```
 from sudrabainiemakoni import plots
 plots.PlotRADecGrid(cldim, outImageDir = katalogs,  stars = False, showplot=False )
@@ -45,7 +53,7 @@ Atkārtoti kameras var lietot tās nereferencējot, bet ielasot to parametrus no
 cldim.LoadCamera(jsonfailavards)
 ```
 
-Pēc kameras referencēšanas, var iegūt attēlu ar horizontālo koordinātu režģi, norādot katalogu, kurā noglabāt attēlu. Attēla vārds būs formā horiz_koord_{id}.jpg
+Pēc kameras referencēšanas, var iegūt attēlu ar horizontālo koordinātu režģi, norādot katalogu, kurā noglabāt attēlu. Attēla vārds būs formā horiz_koord_{id}.jpg. ![Horizontālo koordinātu režģis](../examples/TestCommandLine/horiz_coord_js_202206120030_zvaigznes.jpg)
 ```
 plots.PlotAltAzGrid(cldim,  outImageDir = katalogs, stars = True, showplot=False, from_camera = True)
 ```
@@ -68,4 +76,4 @@ plots.PlotReferencedImages(webmerc, [projected_image_hght],
                                lonmin=map_lonmin, lonmax=map_lonmax, latmin=map_latmin, latmax=map_latmax,
                                alpha=0.9)
 ```
-
+![Ģeoreferencēts attēls uz pamata kartes](../examples/TestCommandLine/map_80_js_202206120030.jpg)
