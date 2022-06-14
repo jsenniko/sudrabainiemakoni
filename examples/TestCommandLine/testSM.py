@@ -8,11 +8,9 @@ id='js_202206120030'
 latlon='56.655488,23.734581'
 height=80
 
-argString0=f"""-h"""
-arglist = shlex.split(argString0)
-args = argumentsSM.parse_arguments(arglist)
-#print(args)
-#procesetSM.doProcessing(args)
+#argString0=f"""-h"""
+#arglist = shlex.split(argString0)
+#args = argumentsSM.parse_arguments(arglist)
 
 argString1=f"""--id={id}
 --zvaigznes={id}_zvaigznes.txt
