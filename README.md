@@ -16,6 +16,7 @@ import sys
 sys.path.append(cels_uz_repositorija_katalogu)
 from sudrabainiemakoni.cloudimage import CloudImage
 ```
+Lai pārliecinātos, ka instalācija veiksmīga, var izmantot [piemēra failu](examples/TestCommandLine/testSM.py)
 
 #### Instalējot kā Python pakotni
 
@@ -31,6 +32,7 @@ Tālāk var tieši importēt vajadzīgās komponentes
 ```
 from sudrabainiemakoni.cloudimage import CloudImage
 ```
+Lai pārliecinātos, ka instalācija veiksmīga, var izmantot [piemēra failu](examples/TestCommandLine/testSM.py)
 
 ### Apstrādes piemērs ar komandlīnijas utilītu
 
