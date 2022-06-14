@@ -1,4 +1,4 @@
-usage: testSM.py [-h] [--zvaigznes ZVAIGZNES] [--id ID] [--latlon LATLON]
+ï»¿usage: testSM.py [-h] [--zvaigznes ZVAIGZNES] [--id ID] [--latlon LATLON]
                  [--plotRAGrid PLOTRAGRID] [--plotAltAzGrid PLOTALTAZGRID]
                  [--loadCamera LOADCAMERA] [--saveCamera SAVECAMERA]
                  [--webMercParameters WEBMERCPARAMETERS]
@@ -7,32 +7,32 @@ usage: testSM.py [-h] [--zvaigznes ZVAIGZNES] [--id ID] [--latlon LATLON]
                  [--reprojectedMap REPROJECTEDMAP]
                  file
 
-Sudrabaino mâkoòu attçlu referencçğana
+Sudrabaino mÄkoÅ†u attÄ“lu referencÄ“Å¡ana
 
 positional arguments:
-  file                  Attçla fails (jpg)
+  file                  AttÄ“la fails (jpg)
 
 optional arguments:
   -h, --help            show this help message and exit
   --zvaigznes ZVAIGZNES
-                        Fails ar zvaigşòu pikseïu koordinâtçm
+                        Fails ar zvaigÅ¾Å†u pikseÄ¼u koordinÄtÄ“m
   --id ID               Identifikators
   --latlon LATLON       platums, garums
   --plotRAGrid PLOTRAGRID
-                        RA koordinâtu lîniju attçlu katalogs
+                        RA koordinÄtu lÄ«niju attÄ“lu katalogs
   --plotAltAzGrid PLOTALTAZGRID
-                        AltAz koordinâtu lîniju attçlu katalogs
+                        AltAz koordinÄtu lÄ«niju attÄ“lu katalogs
   --loadCamera LOADCAMERA
-                        No kurienes nolasît kameras failu, ja neuzdod tad
-                        kalibrçt
+                        No kurienes nolasÄ«t kameras failu, ja neuzdod tad
+                        kalibrÄ“t
   --saveCamera SAVECAMERA
-                        Kur noglabât kameras failu
+                        Kur noglabÄt kameras failu
   --webMercParameters WEBMERCPARAMETERS
                         lonmin,lonmax,latmin,latmax,horizontal_resolution_km
   --mapBounds MAPBOUNDS
                         lonmin,lonmax,latmin,latmax
   --mapAlpha MAPALPHA
   --reprojectHeight REPROJECTHEIGHT
-                        Sudrabaino mâkoòu augstums, km
+                        Sudrabaino mÄkoÅ†u augstums, km
   --reprojectedMap REPROJECTEDMAP
-                        Georeferencçts attçls
+                        GeoreferencÄ“ts attÄ“ls
