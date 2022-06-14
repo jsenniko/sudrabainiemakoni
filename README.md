@@ -1,16 +1,34 @@
 # Sudrabaino mākoņu sinhronās novērošanas apstrādes programmas
 
-### Lietot bez Python pakotnes instalēšanas
-```python -m pip install -r requirements.txt```
-
-### Instalēt kā Python pakotni
-
-```
-python setup.py sdist
-python -m pip install dist/sudrabainiemakoni-0.1.tar.gz
-```
 ### Pakotnes lietošanas instrukcija
 [sudrabainiemakoni/README.md](sudrabainiemakoni/README.md)
+
+### Instalācija
+#### Lietošanai bez Python pakotnes instalēšanas
+
+Ar pip utilītu instalējam vajadzīgās pakotnes  
+```python -m pip install -r requirements.txt```   
+Apakšprogrammas atrodas katalogā [**sudrabainiemakoni**](./sudrabainiemakoni). Veidojot python skriptu, lai lietotu pakotni, jāpievieno repozitorija katalogs pie python ceļiem 
+```
+import sys
+sys.path.append(cels_uz_repositorija_katalogu)
+from sudrabainiemakoni.cloudimage import CloudImage
+```
+
+#### Instalējot kā Python pakotni
+
+Izveidojam pakotni
+```
+python setup.py sdist
+```
+Instalējam pakotni
+```
+python -m pip install dist/sudrabainiemakoni-0.1.tar.gz
+```
+Tālāk var tieši importēt vajadzīgās komponentes
+```
+from sudrabainiemakoni.cloudimage import CloudImage
+```
 
 ### Apstrādes piemērs ar komandlīnijas utilītu
 
