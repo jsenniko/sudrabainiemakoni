@@ -567,7 +567,7 @@ class CloudImage:
     def PrepareAltAZImage_throughRA(self):
         self.AAZImage.Prepare_throughRA(self)
 
-    def PrepareCamera(self, method='opt'):
+    def PrepareCamera(self, method='optnew'):
         self.camera = Camera(self)
         self.camera.Fit(method)
     def LoadCamera(self, filename):
