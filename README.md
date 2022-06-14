@@ -12,6 +12,6 @@ python -m pip install dist/sudrabainiemakoni-0.1.tar.gz
 ### Komandlīnijas piemērs
 
 [No python](examples/TestCommandLine/testSM.py)  
-[Komandlīnijas argumenti](examples/TestCommandLine/README.md)
+[Komandlīnijas argumenti](examples/TestCommandLine/readme.md)
 
 
