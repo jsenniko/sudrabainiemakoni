@@ -1,4 +1,5 @@
-﻿usage: testSM.py [-h] [--zvaigznes ZVAIGZNES] [--id ID] [--latlon LATLON]
+```
+usage: procesetSM.py [-h] [--zvaigznes ZVAIGZNES] [--id ID] [--latlon LATLON]
                  [--plotRAGrid PLOTRAGRID] [--plotAltAzGrid PLOTALTAZGRID]
                  [--loadCamera LOADCAMERA] [--saveCamera SAVECAMERA]
                  [--webMercParameters WEBMERCPARAMETERS]
@@ -36,3 +37,4 @@ optional arguments:
                         Sudrabaino mākoņu augstums, km
   --reprojectedMap REPROJECTEDMAP
                         Georeferencēts attēls
+```
