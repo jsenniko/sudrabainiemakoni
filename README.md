@@ -7,7 +7,9 @@
 #### Lietošanai bez Python pakotnes instalēšanas
 
 Ar pip utilītu instalējam vajadzīgās pakotnes  
-```python -m pip install -r requirements.txt```   
+```
+python -m pip install -r requirements.txt
+```   
 Apakšprogrammas atrodas katalogā [**sudrabainiemakoni**](./sudrabainiemakoni). Veidojot python skriptu, lai lietotu pakotni, jāpievieno repozitorija katalogs pie python ceļiem 
 ```
 import sys
