@@ -10,7 +10,7 @@ setup(name='sudrabainiemakoni',
 		'pandas',
 		'scipy',
 		'matplotlib',
-		'scikit-image',
+		'scikit-image','pyproj',
 		'astropy','exifread','cameratransform','pymap3d','tilemapbase'],
 	packages=['sudrabainiemakoni'],
 	zip_safe=False)
