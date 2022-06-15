@@ -67,7 +67,7 @@ Tālāk jāizveido attēls to projicējot uz noteiktu augstumu (```reprojectHeig
 webmerc.prepare_reproject_from_camera(reprojectHeight)
 projected_image_hght=webmerc.Fill_projectedImageMasked()
 ```
-Lai iegūtu attēlu uz kartes pamatnes lietojam ```plots.PlotReferencedImages``` funkciju. ```camera_points`` mainīgais ļauj uzzīmēt uz kartes punktus (tipiski novērotāja punktu). Jānorāda arī kartes apgabala ģeogrāfiskā garuma un platuma robežas. Parametrs ```alpha``` ļauj regulēt projicētā mākoņu attēla caurspīdību
+Lai iegūtu attēlu uz kartes pamatnes lietojam ```plots.PlotReferencedImages``` funkciju. ```camera_points``` mainīgais ļauj uzzīmēt uz kartes punktus (tipiski novērotāja punktu). Jānorāda arī kartes apgabala ģeogrāfiskā garuma un platuma robežas. Parametrs ```alpha``` ļauj regulēt projicētā mākoņu attēla caurspīdību
 ```
 pp=[[cldim.location.lon.value, cldim.location.lat.value]]
 plots.PlotReferencedImages(webmerc, [projected_image_hght],
