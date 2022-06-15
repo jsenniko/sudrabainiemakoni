@@ -8,6 +8,7 @@ import datetime, pytz
 import numpy as np
 import pandas as pd
 import skimage
+import skimage.io
 import cameratransform as ct
 import pymap3d
 from scipy.spatial.transform import Rotation
