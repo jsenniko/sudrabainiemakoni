@@ -1,0 +1,7 @@
+Capella	3133.5	2807.5
+Mirfak	4485.5	2193
+Beta Aur	2561	2872.667
+Delta Aur	2640	2170.333
+Omicron Uma	1331.667	1106.333
+Alpha Cam	3235.375	1264.25
+Algol	5081.667	2756
