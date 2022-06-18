@@ -482,6 +482,7 @@ class CloudImage:
             d = utils.dateFromExif(self.filename)
             self.setDate(d)
         except:
+            print('WARNING: date does not exist in EXIF')
             pass
     def setLocation(self, lon: float, lat: float, height: float = 0):
         # astropy EarthLocation objekts, kuru inicializējam no novērotāja koordinātēm
