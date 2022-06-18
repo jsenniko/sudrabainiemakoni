@@ -342,7 +342,7 @@ class Camera:
         self.camera_enu.pos_y_m=0
         self.camera_enu.elevation_m=0
         if method=='optnew':
-            optimize_camera.OptimizeCamera(self.camera_enu, enu_unit_coords, pxls)
+            self.camera_enu = optimize_camera.OptimizeCamera(self.camera_enu, enu_unit_coords, pxls)
         elif method=='opt':
             optres = scipy.optimize.minimize(optimize_camera.ResRot, [1,0,0,4000,4000, 3000,2000,0], args=(  self.camera_enu, enu_unit_coords, pxls), method='SLSQP',
                                 bounds=[[-7,7],[-7,7],[-7,7], [3000,10000], [3000,10000], [0,6000],[0,4000],[0,1]])
@@ -477,6 +477,7 @@ class CloudImage:
         date_localized=tz.localize(datetime)
         # iegūstam astropy laika objektu, pievienojam images sarakstam
         self.date = astropy.time.Time(date_localized)
+        self.prepareCoordinateSystems()
     def setDateFromExif(self):
         try:
             d = utils.dateFromExif(self.filename)
@@ -487,7 +488,12 @@ class CloudImage:
     def setLocation(self, lon: float, lat: float, height: float = 0):
         # astropy EarthLocation objekts, kuru inicializējam no novērotāja koordinātēm
         self.location = astropy.coordinates.EarthLocation(lon = lon, lat = lat, height = height)
-
+        self.prepareCoordinateSystems()
+    def prepareCoordinateSystems(self):
+        # horizontālā koordinātu sistēma, atbilstoši novērotāja pozīcijai un laikam (tie iegūti iepriekš)
+        self.altaz =astropy.coordinates.AltAz(obstime=self.date, location=self.location)
+        # ITRS koordinātu sistēma, kas atbilst novērošanas laikam (būs nepieciešama tālāk, ģoecentrikso koordināšu noteikšanai)
+        self.itrs = astropy.coordinates.ITRS(obstime=self.date)
     def setStarReferences(self, starList, pixelList):
         assert(len(starList==len(pixelList)))
         self.starReferences = [StarReference(star, pixel) for star, pixel in zip(starList, pixelList)]
@@ -513,10 +519,6 @@ class CloudImage:
                 astropy.coordinates.SkyCoord(skycoords), sip_degree=sip_degree,**fit_parameters)
         print(wcs)
         self.wcs=wcs
-        # horizontālā koordinātu sistēma, atbilstoši novērotāja pozīcijai un laikam (tie iegūti iepriekš)
-        self.altaz =astropy.coordinates.AltAz(obstime=self.date, location=self.location)
-        # ITRS koordinātu sistēma, kas atbilst novērošanas laikam (būs nepieciešama tālāk, ģoecentrikso koordināšu noteikšanai)
-        self.itrs = astropy.coordinates.ITRS(obstime=self.date)
 
     def TestStarFit(self):
         # test fit

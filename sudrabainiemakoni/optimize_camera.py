@@ -49,13 +49,22 @@ def ResFOVCamera(x, camera, space_coords, pxls):
         camera.k1=x[4]
     test_pxls = camera.imageFromSpace(space_coords, hide_backpoints=False)
     return np.sqrt(np.mean((test_pxls-pxls)**2))
-
+def reload_camera(camera):
+    import cameratransform as ct
+    keys = camera.parameters.parameters.keys()
+    variables = {key: getattr(camera, key) for key in keys}
+    camnew = ct.Camera(ct.RectilinearProjection(), ct.SpatialOrientation())
+    for key in variables:
+        setattr(camnew, key, variables[key])
+    return camnew
 def OptimizeCamera(camera, enu_unit_coords, pxls):
     fx,fy, cx,cy =  camera.focallength_x_px, camera.focallength_y_px, camera.center_x_px, camera.center_y_px
     optres = scipy.optimize.minimize(ResFOVCamera, [fx,fy, cx,cy, 0], args=(camera,  enu_unit_coords, pxls), method='SLSQP',
                         bounds=[[1000,10000], [1000,10000], [0,6000],[0,4000],[0,1]])
     print(optres)
-    return camera
+    # construct new camera from optimized camera parameters
+    cameranew = reload_camera(camera)
+    return cameranew
 
 def ResRot(x, camera1, space_coords, pxls):
     rr=Rotation.from_rotvec(x[0:3])
