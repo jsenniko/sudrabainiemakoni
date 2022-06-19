@@ -87,8 +87,13 @@ def PlotRADecGrid(cloudImage: CloudImage,  outImageDir = None,  stars = False, s
             plt.show()
         else:
             plt.close()
-def PlotAltAzGrid(cloudImage: CloudImage, outImageDir = None,  stars = False, showplot=True, from_camera = False):
-        fig, ax = plt.subplots(figsize=(20,10))
+def PlotAltAzGrid(cloudImage: CloudImage, outImageDir = None,  stars = False, showplot=True, from_camera = True, ax=None):
+        if ax is None:
+            doPlot=True
+            fig, ax = plt.subplots(figsize=(20,10))
+        else:
+            doPlot=False
+            fig=ax.figure
         ax.imshow(cloudImage.imagearray)
         if from_camera and cloudImage.camera.camera_enu is not None:
             DrawAltAzGrid(ax, cloudImage.GetAltAzGrid_fromcamera())
@@ -106,10 +111,11 @@ def PlotAltAzGrid(cloudImage: CloudImage, outImageDir = None,  stars = False, sh
         else:
             if outImageDir is not None:
                 fig.savefig(f'{outImageDir}horiz_coord_{imid}.jpg', dpi=300, bbox_inches='tight')
-        if showplot:
-            plt.show()
-        else:
-            plt.close()
+        if doPlot:
+            if showplot:
+                plt.show()
+            else:
+                plt.close()
 
 #def PlotCoordinateGrids(cloudImage: CloudImage, outImageDir = None, showplot = True):
     #coordgrid = GetImageRaDecGrid(cloudImage.imagearray, cloudImage.wcs)
