@@ -425,7 +425,7 @@ class CloudImage:
     def __init__(self, code, filename):
         self.code = code
         self.starReferences :list[StarReference] = []
-        self.filename = filename
+        self.filename = os.path.abspath(filename)
         self.location: astropy.coordinates.EarthLocation = astropy.coordinates.EarthLocation(0,0)
         self.date: astropy.time.Time = astropy.time.Time(datetime.datetime.now())
         self.__imagearray = None
@@ -461,17 +461,15 @@ class CloudImage:
         c.setStarReferences(stars, pixels)
         return c
 
+    def __getstate__(self):
+        state = self.__dict__
+        invalid = {"xxx", "_aazgrid", "_radecgrid","_AAZImage"}
+        return {x: state[x] for x in state if x not in invalid}
 
-
-#TODO do not save grids
     def save(self, filename):
         import pickle
-#        x = self.xxx
-#        self.xxx = None
-
         with open(filename, 'wb') as f:
             pickle.dump(self, f)
-#       self.xxx = x
 
     def setDate(self, datetime: datetime.datetime, tz=timezone):
         date_localized=tz.localize(datetime)
