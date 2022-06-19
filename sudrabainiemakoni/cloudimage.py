@@ -30,6 +30,7 @@ class StarReference:
         c=astropy.coordinates.SkyCoord.from_name(self.name)
         print(self.name, c)
         self.skycoord = c
+
 class AAZImage:
     def __init__(self, cloudImage):
         self.cloudImage = cloudImage
@@ -321,7 +322,7 @@ class Camera:
                 ct.FitParameter("k1", lower=0, upper=1, value=0),
                 ], iterations=2e3)
 
-    def Fit(self, method='optnew'):
+    def Fit(self, method='optnew', distortion=False):
         #exif = utils.getExifTags(self.cloudImage.filename)
         #focallength = exif.get('FocalLength', 24)
         focallength = 24
@@ -333,16 +334,15 @@ class Camera:
                                          image=image_size),
                   ct.SpatialOrientation(elevation_m=0),
                   ct.BrownLensDistortion())
-        stars_altaz = self.cloudImage.getSkyCoords().transform_to(self.cloudImage.altaz)
+
+        enu_unit_coords = self.cloudImage.get_stars_enu_unit_coords()
         pxls = self.cloudImage.getPixelCoords()
-        enu_unit_coords = pymap3d.aer2enu(stars_altaz.az.value, stars_altaz.alt.value,1)
-        enu_unit_coords=np.array(enu_unit_coords).T
         self.camera_enu.addLandmarkInformation(pxls, enu_unit_coords, [0.01, 0.01, 0.01])
         self.camera_enu.pos_x_m=0
         self.camera_enu.pos_y_m=0
         self.camera_enu.elevation_m=0
         if method=='optnew':
-            self.camera_enu = optimize_camera.OptimizeCamera(self.camera_enu, enu_unit_coords, pxls)
+            self.camera_enu = optimize_camera.OptimizeCamera(self.camera_enu, enu_unit_coords, pxls, distortion=distortion)
         elif method=='opt':
             optres = scipy.optimize.minimize(optimize_camera.ResRot, [1,0,0,4000,4000, 3000,2000,0], args=(  self.camera_enu, enu_unit_coords, pxls), method='SLSQP',
                                 bounds=[[-7,7],[-7,7],[-7,7], [3000,10000], [3000,10000], [0,6000],[0,4000],[0,1]])
@@ -350,23 +350,9 @@ class Camera:
         else:
             self._fit_metropolis()
         print('ENU camera res:',np.sqrt(np.mean((self.camera_enu.imageFromSpace(enu_unit_coords)-pxls)**2)))
-        import copy
-        # ja lieto astropy objektus, tad pārveidot no radiāniem uz grādiem nevajag
-        sinlon, coslon = np.sin(self.cloudImage.location.lon).value,np.cos(self.cloudImage.location.lon).value
-        sinlat, coslat = np.sin(self.cloudImage.location.lat).value,np.cos(self.cloudImage.location.lat).value
-        rotMatr_uvw_enu=np.array([
-            [-sinlon, coslon, 0],
-            [-sinlat*coslon, -sinlat*sinlon, coslat],
-            [coslat*coslon, coslat*sinlon, sinlat]
-        ])
-        angl = optimize_camera.Orientation_fromRotation(optimize_camera.Rotation_fromOrientation(self.camera_enu)*Rotation.from_matrix(rotMatr_uvw_enu))
 
-        self.camera_ecef = ct.Camera(copy.deepcopy(self.camera_enu.projection),
-                                ct.SpatialOrientation(**angl),
-                                copy.deepcopy(self.camera_enu.lens))
-        self.camera_ecef.pos_x_m=self.cloudImage.location.x.value
-        self.camera_ecef.pos_y_m=self.cloudImage.location.y.value
-        self.camera_ecef.elevation_m=self.cloudImage.location.z.value
+        self.camera_ecef =  self.camera_ecef_from_camera_enu(self.camera_enu)
+
         ecef_unit = pymap3d.enu2ecef(enu_unit_coords[:,0], enu_unit_coords[:,1], enu_unit_coords[:,2],
                                       self.cloudImage.location.lat.value,self.cloudImage.location.lon.value,self.cloudImage.location.height.value)
         ecef_unit =np.array(ecef_unit).T
@@ -375,7 +361,8 @@ class Camera:
 
 
         return
-    def ENU_to_ECEF(self):
+
+    def camera_ecef_from_camera_enu(self, camera_enu):
         import copy
         # ja lieto astropy objektus, tad pārveidot no radiāniem uz grādiem nevajag
         sinlon, coslon = np.sin(self.cloudImage.location.lon).value,np.cos(self.cloudImage.location.lon).value
@@ -385,23 +372,24 @@ class Camera:
             [-sinlat*coslon, -sinlat*sinlon, coslat],
             [coslat*coslon, coslat*sinlon, sinlat]
         ])
-        angl = utils.Orientation_fromRotation(utils.Rotation_fromOrientation(self.camera_enu)*Rotation.from_matrix(rotMatr_uvw_enu))
+        angl = optimize_camera.Orientation_fromRotation(optimize_camera.Rotation_fromOrientation(camera_enu)*Rotation.from_matrix(rotMatr_uvw_enu))
 
-        self.camera_ecef = ct.Camera(copy.deepcopy(self.camera_enu.projection),
+        camera_ecef = ct.Camera(copy.deepcopy(camera_enu.projection),
                                 ct.SpatialOrientation(**angl),
-                                copy.deepcopy(self.camera_enu.lens))
-        self.camera_ecef.pos_x_m=self.cloudImage.location.x.value
-        self.camera_ecef.pos_y_m=self.cloudImage.location.y.value
-        self.camera_ecef.elevation_m=self.cloudImage.location.z.value
+                                copy.deepcopy(camera_enu.lens))
+        camera_ecef.pos_x_m=self.cloudImage.location.x.value
+        camera_ecef.pos_y_m=self.cloudImage.location.y.value
+        camera_ecef.elevation_m=self.cloudImage.location.z.value
+        return camera_ecef
 
     def save(self, filename):
         self.camera_enu.save(os.path.splitext(filename)[0]+'_enu.json')
         self.camera_ecef.save(os.path.splitext(filename)[0]+'_ecef.json')
     def load(self, filename):
         if os.path.exists(os.path.splitext(filename)[0]+'_enu.json'):
-            self.camera_enu = ct.load_camera(os.path.splitext(filename)[0]+'_enu.json')
+            self.camera_enu = optimize_camera.load_camera(os.path.splitext(filename)[0]+'_enu.json')
         if os.path.exists(os.path.splitext(filename)[0]+'_ecef.json'):
-            self.camera_ecef = ct.load_camera(os.path.splitext(filename)[0]+'_ecef.json')
+            self.camera_ecef = optimize_camera.load_camera(os.path.splitext(filename)[0]+'_ecef.json')
 
     def imageFromECEF(self, xyz):
         return self.camera_ecef.imageFromSpace(xyz)
@@ -571,9 +559,9 @@ class CloudImage:
     def PrepareAltAZImage_throughRA(self):
         self.AAZImage.Prepare_throughRA(self)
 
-    def PrepareCamera(self, method='optnew'):
+    def PrepareCamera(self, method='optnew', **params):
         self.camera = Camera(self)
-        self.camera.Fit(method)
+        self.camera.Fit(method, **params)
     def LoadCamera(self, filename):
         self.camera = Camera(self)
         self.camera.load(filename)
@@ -605,6 +593,12 @@ class CloudImage:
         #print('PS:',(p2.x-p.location.x).value)
         direction = np.array([(p2.x-p.location.x).value,(p2.y-p.location.y).value,(p2.z-p.location.z).value])/(d)
         return direction
+
+    def get_stars_enu_unit_coords(self):
+        stars_altaz = self.getSkyCoords().transform_to(self.altaz)
+        enu_unit_coords = pymap3d.aer2enu(stars_altaz.az.value, stars_altaz.alt.value,1)
+        enu_unit_coords=np.array(enu_unit_coords).T
+        return enu_unit_coords
 
 
 

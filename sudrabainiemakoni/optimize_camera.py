@@ -53,14 +53,25 @@ def reload_camera(camera):
     import cameratransform as ct
     keys = camera.parameters.parameters.keys()
     variables = {key: getattr(camera, key) for key in keys}
-    camnew = ct.Camera(ct.RectilinearProjection(), ct.SpatialOrientation())
+    camnew = ct.Camera(ct.RectilinearProjection(), ct.SpatialOrientation(),  ct.BrownLensDistortion())
     for key in variables:
         setattr(camnew, key, variables[key])
     return camnew
-def OptimizeCamera(camera, enu_unit_coords, pxls):
+# fix loading bug of cameratransform v1.1
+def load_camera(filename):
+    import cameratransform as ct
+    camera = ct.Camera(ct.RectilinearProjection(), ct.SpatialOrientation(),  ct.BrownLensDistortion())
+    camera.load(filename)
+    return camera
+
+def OptimizeCamera(camera, enu_unit_coords, pxls, distortion=True):
     fx,fy, cx,cy =  camera.focallength_x_px, camera.focallength_y_px, camera.center_x_px, camera.center_y_px
-    optres = scipy.optimize.minimize(ResFOVCamera, [fx,fy, cx,cy, 0], args=(camera,  enu_unit_coords, pxls), method='SLSQP',
+    if distortion:
+        optres = scipy.optimize.minimize(ResFOVCamera, [fx,fy, cx,cy, 0], args=(camera,  enu_unit_coords, pxls), method='SLSQP',
                         bounds=[[1000,10000], [1000,10000], [0,6000],[0,4000],[0,1]])
+    else:
+        optres = scipy.optimize.minimize(ResFOVCamera, [fx,fy, cx,cy], args=(camera,  enu_unit_coords, pxls), method='SLSQP',
+                        bounds=[[1000,10000], [1000,10000], [0,6000],[0,4000]])
     print(optres)
     # construct new camera from optimized camera parameters
     cameranew = reload_camera(camera)
