@@ -397,6 +397,18 @@ class Camera:
         enu = pymap3d.aer2enu(az,alt,1.0)
         return self.camera_enu.imageFromSpace(enu)
 
+    def get_azimuth_elevation_rotation(self):
+        camera_enu=self.camera_enu
+        if camera_enu.tilt_deg<0:
+            azimuth =180+camera_enu.heading_deg if camera_enu.heading_deg<0 else camera_enu.heading_deg-180
+            tilt =-camera_enu.tilt_deg
+            roll =camera_enu.roll_deg-180 if camera_enu.roll_deg>0 else 180+camera_enu.roll_deg
+        else:
+            azimuth =camera_enu.heading_deg
+            tilt =camera_enu.tilt_deg
+            roll =camera_enu.roll_deg
+        # tilt - 0 deg down, zenith distance=180-tilt, elevation=tilt-90
+        return azimuth, tilt-90, roll
 
 
 class CloudImage:
