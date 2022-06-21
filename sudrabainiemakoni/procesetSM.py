@@ -7,17 +7,21 @@ from sudrabainiemakoni import plots, argumentsSM
 
 
 def doProcessing(args):
-    print('Attēls:', args.file)
-    cldim = CloudImage(args.id, args.file)
-    cldim.setDateFromExif()
-    lat, lon = np.array(args.latlon.split(',')).astype('float')
-    cldim.setLocation(lat=lat, lon=lon)
-    if args.zvaigznes is not None:
-        df = pd.read_csv(args.zvaigznes, sep='\t', header=None)
-        starnames = df[0]
-        pixels=np.array(df[[1,2]])
-        cldim.setStarReferences(starnames, pixels)
-        cldim.GetWCS(sip_degree=2, fit_parameters={'projection':'TAN'})
+
+    if args.loadProject is None:
+        print('Attēls:', args.file)
+        cldim = CloudImage(args.id, args.file)
+        cldim.setDateFromExif()
+        lat, lon = np.array(args.latlon.split(',')).astype('float')
+        cldim.setLocation(lat=lat, lon=lon)
+        if args.zvaigznes is not None:
+            df = pd.read_csv(args.zvaigznes, sep='\t', header=None)
+            starnames = df[0]
+            pixels=np.array(df[[1,2]])
+            cldim.setStarReferences(starnames, pixels)
+            cldim.GetWCS(sip_degree=2, fit_parameters={'projection':'TAN'})
+    else:
+        cldim = CloudImage.load(args.loadProject)
     if args.plotRAGrid is not None:
         print('Plotting RA grid')
         plots.PlotRADecGrid(cldim, outImageDir = args.plotRAGrid,  stars = False, showplot=False )
@@ -30,6 +34,12 @@ def doProcessing(args):
     if args.saveCamera is not None:
         print('Save camera to:',args.saveCamera)
         cldim.SaveCamera(args.saveCamera)
+
+    if args.saveProject is not None:
+        print('Save project to:',args.saveProject)
+        cldim.save(args.saveProject)
+
+
     if args.plotAltAzGrid is not None:
         print('Plotting AltAz grid')
         plots.PlotAltAzGrid(cldim,  outImageDir = args.plotAltAzGrid, stars = True, showplot=False, from_camera = True)

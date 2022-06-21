@@ -40,48 +40,70 @@ def writeWithText(imgarr, z, filename):
     draw.text((10, 10),str(z)+' km',(128,255,128),font=font)
     pimg.save(filename)
 
-
-def getAverageImages(imgarr):
+def adjust_gamma(imgarr):
     img_adjust=[imgarr[0]]
     for img in imgarr[1:]:
         img_adj=gamma_adjust(imgarr[0],img)
         img_adjust.append(img_adj)
     img_adjust=np.array(img_adjust)
-
-    weights=np.repeat(1/len(imgarr), len(imgarr))
-    img_mean=(img_adjust*weights[:,np.newaxis, np.newaxis,np.newaxis]).sum(axis=0)
-
+    return img_adjust
+def get_bw_images(imgarr):
     img_bw=[]
-    for img in img_adjust:
+    for img in imgarr:
         img_bw.append(skimage.color.rgb2gray(img))
     img_bw=np.array(img_bw)
-    minthr=2
+    return img_bw
+def get_mean_image(imgarr):
+    weights=np.repeat(1/len(imgarr), len(imgarr))
+    img_mean=(imgarr*weights[:,np.newaxis, np.newaxis,np.newaxis]).sum(axis=0).astype('uint8')
+    return  img_mean
+def get_diff_image(img_bw, minthr=2):
     img_max=img_bw.max(axis=0)
     img_adjust_m1=np.where(img_bw>minthr, img_bw, 1.0)
     img_min=img_adjust_m1.min(axis=0)
-    xxx=np.zeros(shape=imgarr[0].shape)
+    xxx=np.zeros(shape=(img_bw[0].shape[0], img_bw[0].shape[1], 3))
     v=(img_max-img_min)#*1.5+0.4
     xxx[:,:,0]=v
     xxx[:,:,1]=v
     xxx[:,:,2]=v
     img_diff=np.array(xxx*255, dtype='uint8')
-    img_tricolor=None
-    if len(img_bw)==3:
-        xxx=np.zeros(shape=imgarr[0].shape)
-        xxx[:,:,0]=img_bw[0]
-        xxx[:,:,1]=img_bw[1]
-        xxx[:,:,2]=img_bw[2]
-        img_tricolor=np.array(xxx*255, dtype='uint8')
+    return img_diff
+def get_bicolor_images(img_bw):
     img_bicolor={}
     for i in range(len(img_bw)):
         for j in range(i+1,len(img_bw)):
-            xxx=np.zeros(shape=imgarr[0].shape)
+            xxx=np.zeros(shape=(img_bw[0].shape[0], img_bw[0].shape[1], 3))
             v=((1-img_bw[i])+img_bw[j])/2.0
             xxx[:,:,0]=v
             xxx[:,:,1]=v
             xxx[:,:,2]=v
             img=np.array(xxx*255, dtype='uint8')
             img_bicolor[(i, j)]=img
+    return img_bicolor
+def get_tricolor_image(img_bw):
+    xxx=np.zeros(shape=(img_bw[0].shape[0], img_bw[0].shape[1], 3))
+    xxx[:,:,0]=img_bw[0]
+    xxx[:,:,1]=img_bw[1]
+    xxx[:,:,2]=img_bw[2]
+    img_tricolor=np.array(xxx*255, dtype='uint8')
+    return img_tricolor
+
+def getAverageImages(imgarr, mean=True, diff=True, bicolor=True, tricolor=True):
+    img_adjust=adjust_gamma(imgarr)
+    img_mean=None
+    img_diff=None
+    img_tricolor=None
+    img_bicolor=None
+    if mean:
+        img_mean=get_mean_image(img_adjust)
+    if diff or bicolor or tricolor:
+        img_bw=get_bw_images(img_adjust)
+    if diff:
+        img_diff=get_diff_image(img_bw, minthr=2)
+    if bicolor:
+        img_bicolor= get_bicolor_images(img_bw)
+    if tricolor and len(img_bw)==3:
+        img_tricolor=get_tricolor_image(img_bw)
     return img_mean, img_diff, img_tricolor, img_bicolor
 
 def GetRayConvergence(p1, v1, p2, v2):

@@ -33,6 +33,8 @@ def parse_arguments(argumentlist=None):
     parser.add_argument('--mapAlpha', type=float, action='store', default=0.8, help='')
     parser.add_argument('--reprojectHeight', type=float, action='store', default=80, help='Sudrabaino mākoņu augstums, km')
     parser.add_argument('--reprojectedMap', type=newFileOk, action='store', help='Georeferencēts attēls')
+    parser.add_argument('--loadProject', type=str, action='store', help='No kurienes nolasīt projekta failu')
+    parser.add_argument('--saveProject', type=newFileOk, action='store', help='Kur noglabāt projekta failu')
 
     parser.add_argument('file', action='store',  nargs=1, type=str, help='Attēla fails (jpg)')
     args=parser.parse_args(argumentlist)
