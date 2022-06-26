@@ -6,6 +6,8 @@ scikit-image
 pyproj
 astropy
 exifread
-cameratransform
+cameratransform==1.1
 pymap3d
 tilemapbase
+opencv-python
+pykrige
