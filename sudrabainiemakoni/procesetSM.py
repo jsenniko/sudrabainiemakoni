@@ -28,7 +28,7 @@ def doProcessing(args):
     if args.loadCamera is not None:
         print('Load camera from:',args.loadCamera)
         cldim.LoadCamera(args.loadCamera)
-    else:
+    elif args.loadProject is None:
         print('Calibrating camera')
         cldim.PrepareCamera(method='optnew')
     if args.saveCamera is not None:
