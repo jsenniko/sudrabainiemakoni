@@ -179,7 +179,7 @@ class WebMercatorImage:
         height = height_km * 1000
         x,y,z = pymap3d.geodetic2ecef(self.lat_grid, self.lon_grid, height)
         xyz = np.array([x.flatten(),y.flatten(),z.flatten()]).T
-        image_pxls = self.cloudImage.camera.camera_ecef.imageFromSpace(xyz)
+        image_pxls = self.cloudImage.camera.camera_ecef.imageFromSpace(xyz, hide_backpoints=False)
         image_pxls = np.reshape(image_pxls, (x.shape[0],x.shape[1],2))
         self.i_pxls, self.j_pxls = image_pxls[:,:,0],image_pxls[:,:,1]
         width, height = self.cloudImage.imagearray.shape[1], self.cloudImage.imagearray.shape[0]
