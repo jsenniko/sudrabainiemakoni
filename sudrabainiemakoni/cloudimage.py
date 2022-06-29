@@ -133,17 +133,27 @@ class WebMercatorImage:
         self.ymin = min(y)
         self.ymax = max(y)
         self.npix_x, self.npix_y = int((self.xmax-self.xmin)/(pixel_per_km*1000)),int((self.ymax-self.ymin)/(pixel_per_km*1000))
+        self.cloudImage = cloudImage
+        self.initialize()
+
+    def initialize(self):
         self.x_arr = np.linspace(self.xmin,self.xmax, self.npix_x)
         self.y_arr = np.linspace(self.ymax,self.ymin, self.npix_y)
         self.x_grid, self.y_grid = np.meshgrid(self.x_arr, self.y_arr)
         self.ix_grid, self.iy_grid = np.meshgrid(np.arange(0, self.npix_x), np.arange(0, self.npix_y))
-        self.cloudImage = cloudImage
-
         self.lat_grid, self.lon_grid = WebMercatorImage.TRAN_3857_TO_4326.transform(self.x_grid.flatten(),self.y_grid.flatten())
-
         self.lon_grid = self.lon_grid.reshape(self.x_grid.shape)
         self.lat_grid = self.lat_grid.reshape(self.x_grid.shape)
 
+    def __getstate__(self):
+        state = self.__dict__
+        fields = {"xmin", "xmax", "ymin", "ymax", "npix_x", "npix_y"}
+        return {x: state[x] for x in fields}
+    def __setstate__(self, state):
+        fields = {"xmin", "xmax", "ymin", "ymax", "npix_x", "npix_y"}
+        for x in fields:
+            setattr(self, x, state[x])
+        self.initialize()
 
     def prepare_reproject(self, height_km):
         height = height_km* u.km
@@ -225,6 +235,13 @@ class WebMercatorImage:
 
         with open(filename, 'wb') as f:
             pickle.dump(self, f)
+    @classmethod
+    def load(cls, filename, cloudImage = None):
+        import pickle
+        with open(filename, 'rb') as f:
+            d = pickle.load(f)
+        d.cloudImage = cloudImage
+        return d
 
 
     def PrepareHeightMap(self, point_longitudes, point_latitudes, point_heights):
