@@ -339,12 +339,24 @@ class Camera:
                 ct.FitParameter("k1", lower=0, upper=1, value=0),
                 ], iterations=2e3)
 
-    def Fit(self, method='optnew', distortion=False):
+    def Fit(self, method='optnew', distortion=False, centers=True, separate_x_y=True):
         #exif = utils.getExifTags(self.cloudImage.filename)
         #focallength = exif.get('FocalLength', 24)
-        focallength = 24
         sensor_size = (36, 24)
+        focallength = utils.getExifEquivalentFocalLength35mm(self.cloudImage.filename)
+
+        # if focal length given in exif specify range f/2 - 2*f
+        f_bounds = np.array([12, 600]) if focallength is None else np.array([focallength/2.0, focallength*2.0])
+        f_bounds = f_bounds/sensor_size[0]*self.cloudImage.imagearray.shape[1]
+
+
+        focallength = 24 if focallength is None else focallength
+        focallength_px=focallength/sensor_size[0]*self.cloudImage.imagearray.shape[1]
+
         image_size = (self.cloudImage.imagearray.shape[1],  self.cloudImage.imagearray.shape[0])
+
+        cx_bounds = [0, self.cloudImage.imagearray.shape[1]]
+        cy_bounds = [0, self.cloudImage.imagearray.shape[0]]
 
         self.camera_enu = ct.Camera(ct.RectilinearProjection(focallength_mm=focallength,
                                          sensor=sensor_size,
@@ -359,14 +371,22 @@ class Camera:
         self.camera_enu.pos_y_m=0
         self.camera_enu.elevation_m=0
         if method=='optnew':
-            self.camera_enu = optimize_camera.OptimizeCamera(self.camera_enu, enu_unit_coords, pxls, distortion=distortion)
+            self.camera_enu = optimize_camera.OptimizeCamera(self.camera_enu, enu_unit_coords, pxls, distortion=distortion, centers=centers,separate_x_y=separate_x_y,
+                                                             f_bounds=f_bounds, cx_bounds=cx_bounds, cy_bounds=cy_bounds)
         elif method=='opt':
-            optres = scipy.optimize.minimize(optimize_camera.ResRot, [1,0,0,4000,4000, 3000,2000,0], args=(  self.camera_enu, enu_unit_coords, pxls), method='SLSQP',
-                                bounds=[[-7,7],[-7,7],[-7,7], [3000,10000], [3000,10000], [0,6000],[0,4000],[0,1]])
+            optres = scipy.optimize.minimize(optimize_camera.ResRot, [1,0,0,focallength_px,focallength_px,
+                                                                      (cx_bounds[0]+cx_bounds[1])/2.0,
+                                                                      (cy_bounds[0]+cy_bounds[1])/2.0,0], args=(  self.camera_enu, enu_unit_coords, pxls), method='SLSQP',
+                                bounds=[[-7,7],[-7,7],[-7,7], f_bounds, f_bounds, cx_bounds,cy_bounds,[0,1]])
             print(optres)
         else:
             self._fit_metropolis()
-        print('ENU camera res:',np.sqrt(np.mean((self.camera_enu.imageFromSpace(enu_unit_coords)-pxls)**2)))
+
+        calculated_star_px_coords = self.camera_enu.imageFromSpace(enu_unit_coords)
+        residuals = calculated_star_px_coords - pxls
+        print('ENU camera res:',np.sqrt(np.mean(residuals**2)))
+        for sr, delta in zip(self.cloudImage.starReferences, residuals):
+            print(sr, np.abs(delta))
 
         self.camera_ecef =  self.camera_ecef_from_camera_enu(self.camera_enu)
 

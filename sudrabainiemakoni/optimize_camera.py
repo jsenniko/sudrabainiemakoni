@@ -31,11 +31,22 @@ def GetTestPxls(space_coords, pxls, fx, fy, cx, cy):
 def ResFOV(x, space_coords, pxls):
     test_pxls, rotmatr = GetTestPxls(space_coords, pxls, x[0], x[1], x[2], x[3])
     return np.sqrt(np.mean((test_pxls-pxls)**2))
-def ResFOVCamera(x, camera, space_coords, pxls):
+def ResFOVCamera(x, camera, space_coords, pxls, distortion=True, centers=True, separate_x_y=True):
     """
     camera - cameratransform.camera
     """
-    fx, fy, cx, cy = x[0], x[1], x[2], x[3]
+    if separate_x_y:
+        fx, fy = x[0], x[1]
+        n=2
+    else:
+        fx=fy=x[0]
+        n=1
+
+    if centers:
+        n=n+2
+        cx, cy = x[2], x[3]
+    else:
+        cx, cy = camera.center_x_px, camera.center_y_px
     rotmatr = GetRotMatr(space_coords, pxls, fx, fy, cx, cy)
     camera.focallength_x_px = fx
     camera.focallength_y_px = fy
@@ -45,8 +56,8 @@ def ResFOVCamera(x, camera, space_coords, pxls):
     camera.roll_deg=angles['roll_deg']
     camera.tilt_deg=angles['tilt_deg']
     camera.heading_deg=angles['heading_deg']
-    if len(x)>4:
-        camera.k1=x[4]
+    if distortion:
+        camera.k1=x[n]
     test_pxls = camera.imageFromSpace(space_coords, hide_backpoints=False)
     return np.sqrt(np.mean((test_pxls-pxls)**2))
 def reload_camera(camera):
@@ -64,14 +75,26 @@ def load_camera(filename):
     camera.load(filename)
     return camera
 
-def OptimizeCamera(camera, enu_unit_coords, pxls, distortion=True):
+def OptimizeCamera(camera, enu_unit_coords, pxls, distortion=True, centers=True,  separate_x_y=True,
+                   f_bounds=[1000,10000], cx_bounds=[0, 6000], cy_bounds=[0,4000]):
     fx,fy, cx,cy =  camera.focallength_x_px, camera.focallength_y_px, camera.center_x_px, camera.center_y_px
+    #print(f_bounds, cx_bounds, cy_bounds)
+    x0 = [fx]
+
+    bounds=[f_bounds]
+    if separate_x_y:
+        bounds=bounds+[f_bounds]
+        x0 = x0 + [fy]
+    if centers:
+        x0=x0+[cx,cy]
+        bounds = bounds + [cx_bounds, cy_bounds]
     if distortion:
-        optres = scipy.optimize.minimize(ResFOVCamera, [fx,fy, cx,cy, 0], args=(camera,  enu_unit_coords, pxls), method='SLSQP',
-                        bounds=[[1000,10000], [1000,10000], [0,6000],[0,4000],[0,1]])
-    else:
-        optres = scipy.optimize.minimize(ResFOVCamera, [fx,fy, cx,cy], args=(camera,  enu_unit_coords, pxls), method='SLSQP',
-                        bounds=[[1000,10000], [1000,10000], [0,6000],[0,4000]])
+        x0=x0+[0.0]
+        bounds = bounds + [[0.0, 1.0]]
+
+
+    optres = scipy.optimize.minimize(ResFOVCamera, x0, args=(camera,  enu_unit_coords, pxls, distortion, centers,separate_x_y), method='SLSQP',
+                        bounds=bounds)
     print(optres)
     # construct new camera from optimized camera parameters
     cameranew = reload_camera(camera)

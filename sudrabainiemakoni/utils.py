@@ -16,6 +16,15 @@ def getExifTags(filename):
     tags = exifread.process_file(f)
     f.close()
     return tags
+def getExifEquivalentFocalLength35mm(filename):
+    try:
+        tags = getExifTags(filename)
+        focallength35mm = tags.get('EXIF FocalLengthIn35mmFilm', None)
+        if focallength35mm is not None:
+                focallength35mm  = float(focallength35mm.values[0])
+    except:
+        focallength35mm = None
+    return focallength35mm
 # gamma adjust funkciju paņēmu no savas raustīgo time-lapsu korekcijas (sk piem 2020.g. komētu time-lapses)
 def gamma_adjust(img_fixed, img_test):
     lthreshold=5
