@@ -25,6 +25,25 @@ def getExifEquivalentFocalLength35mm(filename):
     except:
         focallength35mm = None
     return focallength35mm
+def getExifLatLon(filename):
+    try:
+        tags = getExifTags(filename)
+        latref = tags.get('GPS GPSLatitudeRef',None)
+        latitude = tags.get('GPS GPSLatitude',None)
+        lonref = tags.get('GPS GPSLongitudeRef',None)
+        longitude = tags.get('GPS GPSLongitude',None)
+        if latref is not None and latitude is not None and lonref is not None and longitude is not None:
+            longitude = float(longitude.values[0])+float(longitude.values[1])/60.0+float(longitude.values[2])/3600.0
+            latitude = float(latitude.values[0])+float(latitude.values[1])/60.0+float(latitude.values[2])/3600.0
+            if latref.values=='S':
+                latitude = -latitude
+            if lonref.values=='W':
+                longitude = -longitude
+        else:
+            latitude, longitude = None, None
+    except:
+        latitude, longitude  = None, None
+    return latitude, longitude
 # gamma adjust funkciju paņēmu no savas raustīgo time-lapsu korekcijas (sk piem 2020.g. komētu time-lapses)
 def gamma_adjust(img_fixed, img_test):
     lthreshold=5

@@ -446,6 +446,9 @@ class Camera:
             roll =camera_enu.roll_deg
         # tilt - 0 deg down, zenith distance=180-tilt, elevation=tilt-90
         return azimuth, tilt-90, roll
+    def get_focal_lengths_mm(self):
+        return
+
 
 
 class CloudImage:
@@ -524,6 +527,13 @@ class CloudImage:
         # astropy EarthLocation objekts, kuru inicializējam no novērotāja koordinātēm
         self.location = astropy.coordinates.EarthLocation(lon = lon, lat = lat, height = height)
         self.prepareCoordinateSystems()
+    def setLocationExif(self):
+        lat, lon = utils.getExifLatLon(self.filename)
+        print('EXIF latlon', lat, lon)
+        if lon is not None and lat is not None:
+            self.setLocation(lon, lat)
+        else:
+            raise Exception("Image contains no EXIF GPS data")
     def prepareCoordinateSystems(self):
         # horizontālā koordinātu sistēma, atbilstoši novērotāja pozīcijai un laikam (tie iegūti iepriekš)
         self.altaz =astropy.coordinates.AltAz(obstime=self.date, location=self.location)

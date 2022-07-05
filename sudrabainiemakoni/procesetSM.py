@@ -12,8 +12,11 @@ def doProcessing(args):
         print('Attēls:', args.file)
         cldim = CloudImage(args.id, args.file)
         cldim.setDateFromExif()
-        lat, lon = np.array(args.latlon.split(',')).astype('float')
-        cldim.setLocation(lat=lat, lon=lon)
+        if args.latlon is not None:
+            lat, lon = np.array(args.latlon.split(',')).astype('float')
+            cldim.setLocation(lat=lat, lon=lon)
+        else:
+            cldim.setLocationExif()
         if args.zvaigznes is not None:
             df = pd.read_csv(args.zvaigznes, sep='\t', header=None)
             starnames = df[0]
