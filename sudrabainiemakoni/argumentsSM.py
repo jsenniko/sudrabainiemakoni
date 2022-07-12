@@ -35,6 +35,9 @@ def parse_arguments(argumentlist=None):
     parser.add_argument('--reprojectedMap', type=newFileOk, action='store', help='Georeferencēts attēls')
     parser.add_argument('--loadProject', type=str, action='store', help='No kurienes nolasīt projekta failu')
     parser.add_argument('--saveProject', type=newFileOk, action='store', help='Kur noglabāt projekta failu')
+    parser.add_argument('--optimizeDistortion',  action='store_true', help='Vai optimizēt kameras kropļojumus?')
+    parser.add_argument('--notOptimizeCenter',   action='store_false',  help='Vai neoptimizēt optiskās ass centru?')
+    parser.add_argument('--notOptimizeUnsymmetric',   action='store_false',  help='Vai neoptimizēt fokusa attālumus pa x un y atsevišķi?')
 
     parser.add_argument('file', action='store',  nargs=1, type=str, help='Attēla fails (jpg)')
     args=parser.parse_args(argumentlist)

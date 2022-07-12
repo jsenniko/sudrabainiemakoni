@@ -533,7 +533,7 @@ class CloudImage:
         if lon is not None and lat is not None:
             self.setLocation(lon, lat)
         else:
-            raise Exception("Image contains no EXIF GPS data")
+            raise Exception("Image contains no EXIF GPS data, latitude and longitude must be explicitly specified")
     def prepareCoordinateSystems(self):
         # horizontālā koordinātu sistēma, atbilstoši novērotāja pozīcijai un laikam (tie iegūti iepriekš)
         self.altaz =astropy.coordinates.AltAz(obstime=self.date, location=self.location)
