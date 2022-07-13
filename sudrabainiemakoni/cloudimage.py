@@ -198,6 +198,32 @@ class WebMercatorImage:
         self.j_pxls=np.round(self.j_pxls).astype('int')
         self.maskpix = self.maskpix &  (self.i_pxls>=0) &  (self.i_pxls<width)  & (self.j_pxls>=0) & (self.j_pxls<height)
 
+    def prepare_inverse_reproject_from_camera(self, height_km):
+        i_grid, j_grid = self.cloudImage.imageArrayGrid()
+        grid_points=np.array([i_grid.flatten(), j_grid.flatten()]).T
+        cam = self.cloudImage.camera.camera_ecef
+        center, rays = cam.getRay(grid_points, normed=True)
+        ray_coords=rays.T
+        xyz = geoutils.los_to_constant_height_surface(*center,*ray_coords, height_km*1000)
+        lat, lon, h = pymap3d.ecef2geodetic(*xyz)
+        i_pxls, j_pxls = self.GetPixelCoords_LatLon(lat, lon)
+        i_pxls = np.reshape(i_pxls, (i_grid.shape[0],i_grid.shape[1]))
+        j_pxls = np.reshape(j_pxls, (i_grid.shape[0],i_grid.shape[1]))
+        maskpix = ~np.isnan(i_pxls) & ~np.isnan(j_pxls)
+        i_pxls=np.round(i_pxls).astype('int')
+        j_pxls=np.round(j_pxls).astype('int')
+        maskpix = maskpix &  (i_pxls>=0) &  (i_pxls<self.npix_x)  & (j_pxls>=0) & (j_pxls<self.npix_y)
+        self.inv_i_pxls = i_pxls
+        self.inv_j_pxls = j_pxls
+        self.inv_maskpix = maskpix
+    def Fill_inverse_projected_image(self, projected_image):
+        i_grid, j_grid = self.cloudImage.imageArrayGrid()
+        if len(projected_image.shape)==2:
+            inverse_projected_image=np.zeros(shape=(self.cloudImage.imagearray.shape[0], self.cloudImage.imagearray.shape[1]), dtype=projected_image.dtype)
+        else:
+            inverse_projected_image=np.zeros(shape=(self.cloudImage.imagearray.shape[0], self.cloudImage.imagearray.shape[1], projected_image.shape[2]), dtype=projected_image.dtype)
+        inverse_projected_image[j_grid[self.inv_maskpix], i_grid[self.inv_maskpix]]=projected_image[self.inv_j_pxls[self.inv_maskpix], self.inv_i_pxls[self.inv_maskpix]]
+        return inverse_projected_image
 
 
 
