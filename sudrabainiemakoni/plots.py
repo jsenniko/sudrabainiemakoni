@@ -219,9 +219,13 @@ def PlotReferencedImages(webmerc: WebMercatorImage,
 
     plotter = tilemapbase.Plotter(extent, t, width=500)
     plotter.plot(ax, t)
+    try:
+        alphas=list(alpha)
+    except:
+        alphas = [alpha]*len(projected_images)
     csl=[]
-    for projected_image in projected_images:
-        cs=ax.imshow(projected_image, extent=(e1.xmin, e1.xmax, e1.ymax, e1.ymin), alpha=alpha)
+    for projected_image, _alpha in zip(projected_images, alphas):
+        cs=ax.imshow(projected_image, extent=(e1.xmin, e1.xmax, e1.ymax, e1.ymin), alpha=_alpha)
         csl.append(cs)
 
     for plonlat in camera_points:
