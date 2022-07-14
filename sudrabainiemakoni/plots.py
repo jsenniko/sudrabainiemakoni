@@ -196,7 +196,8 @@ def PlotReferencedImages(webmerc: WebMercatorImage,
                          camera_points=[],
                          outputFileName = None, showplot = False,
                          lonmin=15, lonmax=30, latmin=56, latmax=62,
-                         alpha=0.8):
+                         alpha=0.8,
+                         ax=None):
     import tilemapbase
     tilemapbase.init(create=True)
     t = tilemapbase.tiles.build_OSM()
@@ -207,21 +208,31 @@ def PlotReferencedImages(webmerc: WebMercatorImage,
     w=16
     h=9*w/16
     hbb=7
-    fig, ax = plt.subplots(figsize=(w,h), facecolor='#FAFAFA')
+    if ax is None:
+        doPlot=True
+        fig, ax = plt.subplots(figsize=(w,h), facecolor='#FAFAFA')
+    else:
+        doPlot=False
+        fig=ax.figure
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
 
     plotter = tilemapbase.Plotter(extent, t, width=500)
     plotter.plot(ax, t)
+    csl=[]
     for projected_image in projected_images:
-        ax.imshow(projected_image, extent=(e1.xmin, e1.xmax, e1.ymax, e1.ymin), alpha=alpha)
+        cs=ax.imshow(projected_image, extent=(e1.xmin, e1.xmax, e1.ymax, e1.ymin), alpha=alpha)
+        csl.append(cs)
 
     for plonlat in camera_points:
         p = tilemapbase.project(plonlat[0], plonlat[1])
         ax.plot(p[0],p[1],marker='o', ms=12)
     if outputFileName is not None:
         fig.savefig(outputFileName, dpi=300, bbox_inches='tight')
-    if showplot:
-        plt.show()
+    if doPlot:
+        if showplot:
+            plt.show()
+        else:
+            plt.close()
     else:
-        plt.close()
+        return csl

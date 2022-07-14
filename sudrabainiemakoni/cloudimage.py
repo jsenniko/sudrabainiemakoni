@@ -281,6 +281,7 @@ class WebMercatorImage:
                 variogram_model="linear",
                 verbose=False,
                 enable_plotting=False,
+                variogram_parameters ={'slope':1.0, 'nugget': 0.0}
             )
             window=10
             krigx, krigy = np.append(self.x_arr[::window],self.x_arr[-1]), np.append(self.y_arr[::window],self.y_arr[-1])
