@@ -43,5 +43,19 @@ def parse_arguments(argumentlist=None):
     args=parser.parse_args(argumentlist)
     args.file=args.file[0]
     return args
-#"argString = '--outputFile=test.111'\n",
+
+def parse_arguments_timelapse(argumentlist=None):
+    parser = argparse.ArgumentParser(description="Sudrabaino mākoņu attēlu referencēšana")
+    parser.add_argument('--loadProject', type=str, action='store', help='No kurienes nolasīt projekta failu', required=True)
+    parser.add_argument('--webMercParameters', type=str, action='store', default='15,33,57,63,0.5', help='lonmin,lonmax,latmin,latmax,horizontal_resolution_km', required=True)
+    parser.add_argument('--mapBounds', type=str, action='store', default='15,30,56,62', help='lonmin,lonmax,latmin,latmax')
+    parser.add_argument('--mapAlpha', type=float, action='store', default=0.8, help='')
+    parser.add_argument('--reprojectHeight', type=float, action='store', default=80, help='Sudrabaino mākoņu augstums, km', required=True)
+    parser.add_argument('--timelapseInputDir', type=isDirectory, action='store', help='Laiklēciena attēlu katalogs', required=True)
+    parser.add_argument('--timelapseOutputDir', type=newFileOk, action='store', help='Projicētā attēlu katalogs', required=True)
+    parser.add_argument('--doNotPrepareGeoreferenced',   action='store_false',  help='', dest='prepareGeoreferenced')
+    parser.add_argument('--prepareMaps',   action='store_true',  help='')
+    args=parser.parse_args(argumentlist)
+    return args
+#"argString = '--outputFi# le=test.111'\n",
 #"args = parser.parse_args(shlex.split(argString))"

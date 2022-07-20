@@ -191,19 +191,36 @@ def PlotValidHeightPoints(imagearray, epilines, pts, heightpoints, valid, filena
         plt.close()
 
 
+def InitPlotReferencedImages(webmerc: WebMercatorImage,
+                             lonmin=15, lonmax=30, latmin=56, latmax=62):
+    import tilemapbase
+    tilemapbase.init(create=True)
+    t = tilemapbase.tiles.build_OSM()
+    extent = tilemapbase.Extent.from_lonlat(lonmin,lonmax,latmin,latmax)
+    e1=tilemapbase.Extent.from_3857(webmerc.xmin,webmerc.xmax, webmerc.ymax, webmerc.ymin)
+    image_bounds = e1.to_project_web_mercator()
+    plotter = tilemapbase.Plotter(extent, t, width=500)
+    return image_bounds, plotter, t
+
+
 def PlotReferencedImages(webmerc: WebMercatorImage,
                          projected_images,
                          camera_points=[],
                          outputFileName = None, showplot = False,
                          lonmin=15, lonmax=30, latmin=56, latmax=62,
                          alpha=0.8,
-                         ax=None):
+                         ax=None,
+                         initData = None):
     import tilemapbase
-    tilemapbase.init(create=True)
-    t = tilemapbase.tiles.build_OSM()
-    extent = tilemapbase.Extent.from_lonlat(lonmin,lonmax,latmin,latmax)
-    e1=tilemapbase.Extent.from_3857(webmerc.xmin,webmerc.xmax, webmerc.ymax, webmerc.ymin)
-    e1 = e1.to_project_web_mercator()
+    if initData is None:
+        tilemapbase.init(create=True)
+        t = tilemapbase.tiles.build_OSM()
+        extent = tilemapbase.Extent.from_lonlat(lonmin,lonmax,latmin,latmax)
+        e1=tilemapbase.Extent.from_3857(webmerc.xmin,webmerc.xmax, webmerc.ymax, webmerc.ymin)
+        image_bounds = e1.to_project_web_mercator()
+        plotter = tilemapbase.Plotter(extent, t, width=500)
+    else:
+       image_bounds, plotter, t = initData
     import matplotlib.transforms
     w=16
     h=9*w/16
@@ -217,7 +234,6 @@ def PlotReferencedImages(webmerc: WebMercatorImage,
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
 
-    plotter = tilemapbase.Plotter(extent, t, width=500)
     plotter.plot(ax, t)
     try:
         alphas=list(alpha)
@@ -225,7 +241,7 @@ def PlotReferencedImages(webmerc: WebMercatorImage,
         alphas = [alpha]*len(projected_images)
     csl=[]
     for projected_image, _alpha in zip(projected_images, alphas):
-        cs=ax.imshow(projected_image, extent=(e1.xmin, e1.xmax, e1.ymax, e1.ymin), alpha=_alpha)
+        cs=ax.imshow(projected_image, extent=(image_bounds.xmin, image_bounds.xmax, image_bounds.ymax, image_bounds.ymin), alpha=_alpha)
         csl.append(cs)
 
     for plonlat in camera_points:
