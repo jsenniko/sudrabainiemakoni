@@ -11,3 +11,8 @@
 * Inicializēt ```WebMercatorImage``` tipa objektu, kas ļauj veidot uz kartes projicētus sudrabaino mākoņu attēlus
 * Noglabāt projicētos attēlus lietošanai GIS programmās
 * Uzzīmēt projicētos attēlus uz OpenStreetMap pamatnes
+### [Augstumu rindas](AugstumuRindas.ipynb)
+* Doti divi vienlaicīgi sudrabaino mākoņu attēli no dažādām vietām
+* Izveidot neatkarīgas projicēto attēlu rindas dažādos augstumos
+* Izveidot dažādā stilā apvienotus projicētos attēlus dažādos augstumos. Aplūkojot izgatavotos failus, iespējams pēc mākoņu struktūru sakritības noteikt sudrabaino mākoņu augstumu
+* Projicēt viena no pāra attēliem uz otra attēla kameras pozīciju mākoņiem atrodoties dažādos augstumos
