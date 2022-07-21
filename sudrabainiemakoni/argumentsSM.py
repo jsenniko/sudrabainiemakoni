@@ -52,6 +52,7 @@ def parse_arguments_timelapse(argumentlist=None):
     parser.add_argument('--mapAlpha', type=float, action='store', default=0.8, help='')
     parser.add_argument('--reprojectHeight', type=float, action='store', default=80, help='Sudrabaino mākoņu augstums, km', required=True)
     parser.add_argument('--timelapseInputDir', type=isDirectory, action='store', help='Laiklēciena attēlu katalogs', required=True)
+    parser.add_argument('--timelapseInputFile', type=str, action='store', help='Laiklēciena attēlu saraksta fails')
     parser.add_argument('--timelapseOutputDir', type=newFileOk, action='store', help='Projicētā attēlu katalogs', required=True)
     parser.add_argument('--doNotPrepareGeoreferenced',   action='store_false',  help='', dest='prepareGeoreferenced')
     parser.add_argument('--prepareMaps',   action='store_true',  help='')
