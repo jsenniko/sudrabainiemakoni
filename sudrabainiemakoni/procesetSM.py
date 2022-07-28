@@ -56,30 +56,37 @@ def doProcessing(args):
             pp=[[cldim.location.lon.value, cldim.location.lat.value]]
             map_lonmin, map_lonmax, map_latmin, map_latmax = np.array(args.mapBounds.split(',')).astype('float')
         webmerc = WebMercatorImage(cldim, lonmin, lonmax, latmin, latmax, horizontal_resolution_km)
-        print(f'Preparing reprojected map at height {args.reprojectHeight} km')
-        height = args.reprojectHeight
-        webmerc.prepare_reproject_from_camera(args.reprojectHeight)
-        projected_image_hght=webmerc.Fill_projectedImageMasked()
-        if args.reprojectedImage:
-            fnimage=os.path.splitext(args.reprojectedImage)[0]+f'_{height}'
-            if args.reprojectedImageFormat=='tif':
-                jgwext='.tfw'
-                skimage.io.imsave(f'{fnimage}.tif', projected_image_hght)
-            else:
-                jgwext='.jgw'
-                projected_image_jpg =   projected_image_hght[:,:,0:3]
-                skimage.io.imsave(f'{fnimage}.jpg', projected_image_jpg)
-            if args.reprojectedImageJGW:
-                 webmerc.SaveJgw(f'{fnimage}{jgwext}')
+
+        height_start = args.reprojectHeight[0]
+        height_end = height_start
+        height_step = 1.0
+        if len(args.reprojectHeight)>=3:
+            height_end = args.reprojectHeight[1]
+            height_step = args.reprojectHeight[2]
+        for height in np.arange(height_start, height_end+height_step, height_step):
+            print(f'Preparing reprojected map at height {height} km')
+            webmerc.prepare_reproject_from_camera(height)
+            projected_image_hght=webmerc.Fill_projectedImageMasked()
+            if args.reprojectedImage:
+                fnimage=os.path.splitext(args.reprojectedImage)[0]+f'_{height}'
+                if args.reprojectedImageFormat=='tif':
+                    jgwext='.tfw'
+                    skimage.io.imsave(f'{fnimage}.tif', projected_image_hght)
+                else:
+                    jgwext='.jgw'
+                    projected_image_jpg =   projected_image_hght[:,:,0:3]
+                    skimage.io.imsave(f'{fnimage}.jpg', projected_image_jpg)
+                if args.reprojectedImageJGW:
+                     webmerc.SaveJgw(f'{fnimage}{jgwext}')
 
 
-        if args.reprojectedMap:
-            fnimage=os.path.splitext(args.reprojectedMap)[0]+f'_{height}.jpg'
-            plots.PlotReferencedImages(webmerc, [projected_image_hght],
-                               camera_points=pp,
-                               outputFileName=fnimage,
-                               lonmin=map_lonmin, lonmax=map_lonmax, latmin=map_latmin, latmax=map_latmax,
-                               alpha=args.mapAlpha)
+            if args.reprojectedMap:
+                fnimage=os.path.splitext(args.reprojectedMap)[0]+f'_{height}.jpg'
+                plots.PlotReferencedImages(webmerc, [projected_image_hght],
+                                   camera_points=pp,
+                                   outputFileName=fnimage,
+                                   lonmin=map_lonmin, lonmax=map_lonmax, latmin=map_latmin, latmax=map_latmax,
+                                   alpha=args.mapAlpha)
 if __name__ == "__main__":
     args = argumentsSM.parse_arguments()
     print(args)

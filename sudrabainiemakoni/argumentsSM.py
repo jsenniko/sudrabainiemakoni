@@ -16,6 +16,14 @@ def isDirectory(s):
     if os.path.isdir(os.path.abspath(s)):
         return s
     raise argparse.ArgumentTypeError('Katalogs neeksistē')
+def isHeightRange(arg):
+    try:
+        hhlist = [float(s.strip()) for s in arg.split(",")]
+        if len(hhlist) in [1,3]:
+            return hhlist
+    except:
+        pass
+    raise argparse.ArgumentTypeError('Jāuzdod augstums, vai no,līdz,solis')
 
 def parse_arguments(argumentlist=None):
     parser = argparse.ArgumentParser(description="Sudrabaino mākoņu attēlu referencēšana")
@@ -31,7 +39,7 @@ def parse_arguments(argumentlist=None):
     parser.add_argument('--webMercParameters', type=str, action='store', default='15,33,57,63,0.5', help='lonmin,lonmax,latmin,latmax,horizontal_resolution_km')
     parser.add_argument('--mapBounds', type=str, action='store', default='15,30,56,62', help='lonmin,lonmax,latmin,latmax')
     parser.add_argument('--mapAlpha', type=float, action='store', default=0.8, help='')
-    parser.add_argument('--reprojectHeight', type=float, action='store', default=80, help='Sudrabaino mākoņu augstums, km')
+    parser.add_argument('--reprojectHeight', type=isHeightRange, action='store', default=80, help='Sudrabaino mākoņu augstums, km. Ja doti trīs ar komatu atdalīti skaitļi, tad augstums no,līdz,solis')
     parser.add_argument('--reprojectedMap', type=newFileOk, action='store', help='Georeferencēts attēls uz kartes fona')
     parser.add_argument('--reprojectedImage', type=newFileOk, action='store', help='Georeferencēts attēls jpg vai tif formātā bez kartes')
     parser.add_argument('--reprojectedImageFormat', type=str, choices=['jpg','tif'], action='store', help='Georeferencētā attēla formāts', default='jpg')
