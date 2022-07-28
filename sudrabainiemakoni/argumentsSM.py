@@ -32,7 +32,11 @@ def parse_arguments(argumentlist=None):
     parser.add_argument('--mapBounds', type=str, action='store', default='15,30,56,62', help='lonmin,lonmax,latmin,latmax')
     parser.add_argument('--mapAlpha', type=float, action='store', default=0.8, help='')
     parser.add_argument('--reprojectHeight', type=float, action='store', default=80, help='Sudrabaino mākoņu augstums, km')
-    parser.add_argument('--reprojectedMap', type=newFileOk, action='store', help='Georeferencēts attēls')
+    parser.add_argument('--reprojectedMap', type=newFileOk, action='store', help='Georeferencēts attēls uz kartes fona')
+    parser.add_argument('--reprojectedImage', type=newFileOk, action='store', help='Georeferencēts attēls jpg vai tif formātā bez kartes')
+    parser.add_argument('--reprojectedImageFormat', type=str, choices=['jpg','tif'], action='store', help='Georeferencētā attēla formāts', default='jpg')
+    parser.add_argument('--reprojectedImageJGW', action='store_true', help='Vai glabāt ģeoreferencētā attēla piesaistes failus prieķš GIS?')
+
     parser.add_argument('--loadProject', type=str, action='store', help='No kurienes nolasīt projekta failu')
     parser.add_argument('--saveProject', type=newFileOk, action='store', help='Kur noglabāt projekta failu')
     parser.add_argument('--optimizeDistortion',  action='store_true', help='Vai optimizēt kameras kropļojumus?')

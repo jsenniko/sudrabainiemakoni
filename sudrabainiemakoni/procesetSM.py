@@ -1,5 +1,8 @@
+import os
 import numpy as np
 import pandas as pd
+import skimage
+import skimage.io
 
 from sudrabainiemakoni.cloudimage import CloudImage
 from sudrabainiemakoni.cloudimage import WebMercatorImage
@@ -47,17 +50,34 @@ def doProcessing(args):
         print('Plotting AltAz grid')
         plots.PlotAltAzGrid(cldim,  outImageDir = args.plotAltAzGrid, stars = True, showplot=False, from_camera = True)
 
-    if args.reprojectedMap is not None:
-        print(f'Preparing reprojected map at height {args.reprojectHeight} km')
+    if args.reprojectedMap is not None or args.reprojectedImage is not None:
         lonmin, lonmax, latmin, latmax, horizontal_resolution_km = np.array(args.webMercParameters.split(',')).astype('float')
-        map_lonmin, map_lonmax, map_latmin, map_latmax = np.array(args.mapBounds.split(',')).astype('float')
+        if args.reprojectedMap:
+            pp=[[cldim.location.lon.value, cldim.location.lat.value]]
+            map_lonmin, map_lonmax, map_latmin, map_latmax = np.array(args.mapBounds.split(',')).astype('float')
         webmerc = WebMercatorImage(cldim, lonmin, lonmax, latmin, latmax, horizontal_resolution_km)
+        print(f'Preparing reprojected map at height {args.reprojectHeight} km')
+        height = args.reprojectHeight
         webmerc.prepare_reproject_from_camera(args.reprojectHeight)
         projected_image_hght=webmerc.Fill_projectedImageMasked()
-        pp=[[cldim.location.lon.value, cldim.location.lat.value]]
-        plots.PlotReferencedImages(webmerc, [projected_image_hght],
+        if args.reprojectedImage:
+            fnimage=os.path.splitext(args.reprojectedImage)[0]+f'_{height}'
+            if args.reprojectedImageFormat=='tif':
+                jgwext='.tfw'
+                skimage.io.imsave(f'{fnimage}.tif', projected_image_hght)
+            else:
+                jgwext='.jgw'
+                projected_image_jpg =   projected_image_hght[:,:,0:3]
+                skimage.io.imsave(f'{fnimage}.jpg', projected_image_jpg)
+            if args.reprojectedImageJGW:
+                 webmerc.SaveJgw(f'{fnimage}{jgwext}')
+
+
+        if args.reprojectedMap:
+            fnimage=os.path.splitext(args.reprojectedMap)[0]+f'_{height}.jpg'
+            plots.PlotReferencedImages(webmerc, [projected_image_hght],
                                camera_points=pp,
-                               outputFileName=args.reprojectedMap,
+                               outputFileName=fnimage,
                                lonmin=map_lonmin, lonmax=map_lonmax, latmin=map_latmin, latmax=map_latmax,
                                alpha=args.mapAlpha)
 if __name__ == "__main__":
