@@ -475,7 +475,56 @@ class Camera:
         return azimuth, tilt-90, roll
     def get_focal_lengths_mm(self):
         return
+    @classmethod
+    def ecef_from_enu(cls, camera_enu, lat_deg, lon_deg, height_m):
+        import copy
+        # ja lieto astropy objektus, tad pārveidot no radiāniem uz grādiem nevajag
+        lon, lat = np.radians(lon_deg), np.radians(lat_deg)
+        sinlon, coslon = np.sin(lon),np.cos(lon)
+        sinlat, coslat = np.sin(lat),np.cos(lat)
+        rotMatr_uvw_enu=np.array([
+            [-sinlon, coslon, 0],
+            [-sinlat*coslon, -sinlat*sinlon, coslat],
+            [coslat*coslon, coslat*sinlon, sinlat]
+        ])
+        angl = optimize_camera.Orientation_fromRotation(optimize_camera.Rotation_fromOrientation(camera_enu)*Rotation.from_matrix(rotMatr_uvw_enu))
 
+        camera_ecef = ct.Camera(copy.deepcopy(camera_enu.projection),
+                                ct.SpatialOrientation(**angl),
+                                copy.deepcopy(camera_enu.lens))
+        x, y, z = pymap3d.geodetic2ecef(lat_deg, lon_deg, height_m)
+        camera_ecef.pos_x_m=x
+        camera_ecef.pos_y_m=y
+        camera_ecef.elevation_m=z
+        return camera_ecef
+    @classmethod
+    def make_cameras(cls, lat_deg, lon_deg, height_m, width_px, height_px, focallength_35mm, azimuth, elevation, rotation):
+        camera_enu = ct.Camera(ct.RectilinearProjection(focallength_mm=focallength_35mm,
+                                             sensor=(36,24),
+                                             image=(width_px, height_px)),
+                               ct.SpatialOrientation(
+                                   heading_deg = azimuth,
+                                   tilt_deg = 90 + elevation,
+                                   roll_deg = rotation,
+                                   elevation_m=0.0
+                               ),  ct.BrownLensDistortion())
+        camera_enu.pos_x_m=0
+        camera_enu.pos_y_m=0
+        camera_enu.elevation_m=0
+
+        camera_ecef=Camera.ecef_from_enu(camera_enu, lat_deg, lon_deg, height_m)
+        return camera_enu, camera_ecef
+    @classmethod
+    def GetAltAzGrid_fromcamera(cls, width_px, height_px, camera_enu):
+        i_grid, j_grid = np.meshgrid(np.arange(width_px),np.arange(height_px))
+        grid_points=np.array([i_grid.flatten(), j_grid.flatten()]).T
+        enu = camera_enu.spaceFromImage(grid_points, D=1)
+        azalt = pymap3d.enu2aer(*enu.T)[0:2]
+        azalt = np.reshape(np.array(azalt),(2,i_grid.shape[0],i_grid.shape[1]))
+        az_min, az_max=azalt[0].min(), azalt[0].max()
+        if az_max-az_min>180:
+            azalt[0]=np.where(azalt[0]>180,azalt[0]-360,azalt[0])
+        return azalt
 
 
 class CloudImage:
@@ -621,14 +670,7 @@ class CloudImage:
             print('Calculate AltAz grid')
             self._aazgrid = self.radecgrid.transform_to(self.altaz)
     def GetAltAzGrid_fromcamera(self):
-        i_grid, j_grid = self.imageArrayGrid()
-        grid_points=np.array([i_grid.flatten(), j_grid.flatten()]).T
-        enu = self.camera.camera_enu.spaceFromImage(grid_points, D=1)
-        azalt = pymap3d.enu2aer(*enu.T)[0:2]
-        azalt = np.reshape(np.array(azalt),(2,i_grid.shape[0],i_grid.shape[1]))
-        azalt[0]=np.where(azalt[0]>180,azalt[0]-360,azalt[0])
-        return azalt
-
+        return Camera.GetAltAzGrid_fromcamera(self.imagearray.shape[1], self.imagearray.shape[0], self.camera.camera_enu)
 
     @property
     def AAZImage(self):
@@ -684,6 +726,43 @@ class CloudImage:
         enu_unit_coords=np.array(enu_unit_coords).T
         return enu_unit_coords
 
+class Reprojector_to_Camera:
+    def __init__(self, cldim: CloudImage, camera_ecef):
+        self.cloudImage = cldim
+        self.camera = camera_ecef
+    def prepare_reproject(self, height_km):
+        width2, height2 = self.camera.image_width_px, self.camera.image_height_px
+        i_grid, j_grid = np.meshgrid(np.arange(width2),np.arange(height2))
+        grid_points=np.array([i_grid.flatten(), j_grid.flatten()]).T
+        cam2 = self.camera
+        center, rays = cam2.getRay(grid_points, normed=True)
+        ray_coords=rays.T
+        xyz = geoutils.los_to_constant_height_surface(*center,*ray_coords, height_km*1000)
+        xyz=xyz.T
+        cam1 = self.cloudImage.camera.camera_ecef
+        image_pxls = cam1.imageFromSpace(xyz)
+        image_pxls = np.reshape(image_pxls, (i_grid.shape[0],i_grid.shape[1],2))
+        i_pxls, j_pxls = image_pxls[:,:,0],image_pxls[:,:,1]
+        width1, height1 = self.cloudImage.imagearray.shape[1], self.cloudImage.imagearray.shape[0]
+        maskpix = ~np.isnan(i_pxls) & ~np.isnan(j_pxls)
+        i_pxls=np.round(i_pxls).astype('int')
+        j_pxls=np.round(j_pxls).astype('int')
+        maskpix = maskpix &  (i_pxls>=0) &  (i_pxls<width1)  & (j_pxls>=0) & (j_pxls<height1)
+        self.maskpix = maskpix
+        self.i_pxls = i_pxls
+        self.j_pxls = j_pxls
+        self.i_grid = i_grid
+        self.j_grid = j_grid
+    def Fill_projectedImage(self):
+        width2, height2 = self.camera.image_width_px, self.camera.image_height_px
+        projected_image=np.zeros(shape=(height2, width2, 3), dtype='uint8')
+        projected_image[self.j_grid[self.maskpix], self.i_grid[self.maskpix]]=self.cloudImage.imagearray[self.j_pxls[self.maskpix], self.i_pxls[self.maskpix]]
+        return projected_image
+    def Fill_projectedImageMasked(self,):
+        img = self.Fill_projectedImage()
+        alpha = ((1-((img[:,:,0]==0) & (img[:,:,1]==0) & (img[:,:,2]==0)))*255).astype('uint8')
+        masked_img = np.append(img, alpha[:,:,np.newaxis], axis=2)
+        return masked_img
 
 
 class Reprojector_12:

@@ -65,7 +65,7 @@ def DrawAltAzGrid(ax, aazgrid, azlevels=None, altlevels=None, nticks=15):
     labelatedge.labelAtEdge(cs.levels, cs, ax, fmt=r'%.0f$^{\circ}$', side='right', pad=20, eps=1)
     # apmānam cirkulāro referenci ap ziemeļiem
     az_levels=locator.tick_values(vmin=az_min, vmax=az_max) if azlevels is None else azlevels#  np.arange(-80,90,10)
-    print(az_min, az_max, az_levels)
+
     cs=ax.contour(az, **grid_style,  levels=az_levels)
     fmt = lambda x: r'{0:.0f}$^{{\circ}}$'.format(x if x>=0 else x+360)
     labelatedge.labelAtEdge(cs.levels, cs, ax, fmt=fmt, side='bottom', pad=-20, eps=1)
