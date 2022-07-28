@@ -43,28 +43,33 @@ def DrawRADecGrid(ax, coordgrid):
 
     labelatedge.labelAtEdge(cs.levels, cs, ax, fmt=fh, side='bottom', pad=-20, eps=1)
     labelatedge.labelAtEdge(cs.levels, cs, ax, fmt=fh, side='top', pad=-20, eps=1)
-def DrawAltAzGrid(ax, aazgrid):
+def DrawAltAzGrid(ax, aazgrid, azlevels=None, altlevels=None, nticks=15):
+    locator=matplotlib.ticker.MaxNLocator(nticks, steps=[1,2,5,10], prune ='both')
     grid_style={'colors':'#DDFFDD', 'linestyles':'--', 'linewidths':0.5}
-    alt_levels=np.arange(-5,65,5)
     if type(aazgrid)==astropy.coordinates.sky_coordinate.SkyCoord:
         alt = aazgrid.alt.to_value()
         az=aazgrid.az.to_value()
     else:
         az = aazgrid[0]
         alt=aazgrid[1]
-    az=np.where(az>180, az-360, az)
+
+    alt_min, alt_max=alt.min(), alt.max()
+    alt_levels=locator.tick_values(vmin=alt_min, vmax=alt_max) if altlevels is None else altlevels #np.arange(-5,65,5)
+    az_min, az_max=az.min(), az.max()
+    if az_max-az_min>180:
+        az=np.where(az>180, az-360, az)
 
     cs=ax.contour(alt, **grid_style, levels=alt_levels)
     #ax.clabel(cs, fmt='%.0f', inline=1)
     labelatedge.labelAtEdge(cs.levels, cs, ax, fmt=r'%.0f$^{\circ}$', side='left', pad=20, eps=1)
     labelatedge.labelAtEdge(cs.levels, cs, ax, fmt=r'%.0f$^{\circ}$', side='right', pad=20, eps=1)
     # apmānam cirkulāro referenci ap ziemeļiem
-
-    az_levels=np.arange(-80,90,10)
-
+    az_levels=locator.tick_values(vmin=az_min, vmax=az_max) if azlevels is None else azlevels#  np.arange(-80,90,10)
+    print(az_min, az_max, az_levels)
     cs=ax.contour(az, **grid_style,  levels=az_levels)
-    labelatedge.labelAtEdge(cs.levels, cs, ax, fmt=r'%.0f$^{\circ}$', side='bottom', pad=-20, eps=1)
-    labelatedge.labelAtEdge(cs.levels, cs, ax, fmt=r'%.0f$^{\circ}$', side='top', pad=-20, eps=1)
+    fmt = lambda x: r'{0:.0f}$^{{\circ}}$'.format(x if x>=0 else x+360)
+    labelatedge.labelAtEdge(cs.levels, cs, ax, fmt=fmt, side='bottom', pad=-20, eps=1)
+    labelatedge.labelAtEdge(cs.levels, cs, ax, fmt=fmt, side='top', pad=-20, eps=1)
 
 def PlotRADecGrid(cloudImage: CloudImage,  outImageDir = None,  stars = False, showplot=True ):
 
