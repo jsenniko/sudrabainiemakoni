@@ -57,7 +57,7 @@ def parse_arguments(argumentlist=None):
     return args
 
 def parse_arguments_timelapse(argumentlist=None):
-    parser = argparse.ArgumentParser(description="Sudrabaino mākoņu attēlu referencēšana")
+    parser = argparse.ArgumentParser(description="Sudrabaino mākoņu laiklēciens")
     parser.add_argument('--loadProject', type=str, action='store', help='No kurienes nolasīt projekta failu', required=True)
     parser.add_argument('--webMercParameters', type=str, action='store', default='15,33,57,63,0.5', help='lonmin,lonmax,latmin,latmax,horizontal_resolution_km', required=True)
     parser.add_argument('--mapBounds', type=str, action='store', default='15,30,56,62', help='lonmin,lonmax,latmin,latmax')
@@ -68,6 +68,20 @@ def parse_arguments_timelapse(argumentlist=None):
     parser.add_argument('--timelapseOutputDir', type=newFileOk, action='store', help='Projicētā attēlu katalogs', required=True)
     parser.add_argument('--doNotPrepareGeoreferenced',   action='store_false',  help='', dest='prepareGeoreferenced')
     parser.add_argument('--prepareMaps',   action='store_true',  help='')
+    args=parser.parse_args(argumentlist)
+    return args
+def parse_arguments_heightmap(argumentlist=None):
+    parser = argparse.ArgumentParser(description="Sudrabaino mākoņu augstuma karte")
+    parser.add_argument('--loadProject1', type=str, action='store', help='Pirmais projekta fails', required=True)
+    parser.add_argument('--loadProject2', type=str, action='store', help='Otrais projekta fails', required=True)
+    parser.add_argument('--loadControlPoints', type=str, action='store', help='Kontrolpunktu fails', required=True)
+    parser.add_argument('--saveControlPoints', type=newFileOk, action='store', help='Kur noglabāt augstumus kontrolpunktos?')
+    parser.add_argument('--plotControlPoints',  type=newFileOk, action='store', help='Kontrolpunktu attēlu faila šablons')
+    parser.add_argument('--webMercParameters', type=str,
+                        action='store', default='15,33,57,63,0.5', help='lonmin,lonmax,latmin,latmax,horizontal_resolution_km', required=True)
+    parser.add_argument('--saveHeightMap', type=newFileOk, action='store', help='Kur noglabāt augstumu kartes bināro failu')
+    parser.add_argument('--saveGeoMap', type=newFileOk, action='store', help='Kur noglabāt augstumu kartes attēlu')
+    parser.add_argument('--mapBounds', type=str, action='store', default='15,30,56,62', help='lonmin,lonmax,latmin,latmax')
     args=parser.parse_args(argumentlist)
     return args
 #"argString = '--outputFi# le=test.111'\n",
