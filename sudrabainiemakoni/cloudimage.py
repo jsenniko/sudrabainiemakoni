@@ -320,6 +320,32 @@ class Camera:
         self.cloudImage = cloudImage
         self.camera_enu = None
         self.camera_ecef = None
+    def __getstate__(self):
+        state = {}
+        for ckey, cam in [('ENU',self.camera_enu), ('ECEF',self.camera_ecef)]:
+            if cam is not None:
+                keys = cam.parameters.parameters.keys()
+                state[ckey] = {key: getattr(cam, key) for key in keys}
+        return state
+    def __setstate__(self, state):
+        if 'camera_enu' in state:
+            # fallback to default picklel saved with previous versions
+            self.__dict__ = state
+        else:
+            self.camera_enu = None
+            self.camera_ecef = None
+            for ckey in ['ENU','ECEF']:
+                if ckey in state:
+                    cam = ct.Camera(ct.RectilinearProjection(),
+                          ct.SpatialOrientation(),
+                          ct.BrownLensDistortion())
+                    for key in state[ckey]:
+                        setattr(cam, key, state[ckey][key])
+                    if ckey=='ENU':
+                        self.camera_enu=cam
+                    else:
+                        self.camera_ecef=cam
+
     def residual(self, x, camera, space_coords, pxls):
         camera.heading_deg=x[0]
         camera.tilt_deg=x[1]
