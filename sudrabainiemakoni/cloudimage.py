@@ -602,7 +602,27 @@ class CloudImage:
         pixels = np.array(x.str.split(',').to_list()).astype('float')
         c.setStarReferences(stars, pixels)
         return c
-
+    @classmethod
+    def from_files(cls, case_id, filename_jpg, filename_stars, lat, lon):
+        cldim = CloudImage(case_id, filename_jpg)
+        cldim.setDateFromExif()
+        if lat is not None and lon is not None:
+            cldim.setLocation(lat=lat, lon=lon)
+        else:
+            cldim.setLocationExif()
+        print('UTC:', cldim.date)
+        print(cldim.location.to_geodetic())
+        # uzstādām zvaigžņu sarakstu
+        df = pd.read_csv(filename_stars, sep='\t', header=None)
+        # zvaigžņu nosaukumi pirmajā kolonā
+        starnames = df[0]
+        # atbilstošās pikseļu koordinātes otrajā un trešajā kolonā
+        pixels=np.array(df[[1,2]])
+        cldim.setStarReferences(starnames, pixels)
+        # izdrukājam zvaigžņu ekvatoriālās un pikseļu koordinātes pārbaudes nolūkos
+        print(cldim.getSkyCoords())
+        print(cldim.getPixelCoords())               
+        return cldim    
     def __getstate__(self):
         state = self.__dict__
         invalid = {"xxx", "_aazgrid", "_radecgrid","_AAZImage"}
