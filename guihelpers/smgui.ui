@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1146</width>
+    <height>872</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="QSplitter" name="splitter">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <widget class="MplWidget" name="MplWidget1" native="true">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>600</height>
+        </size>
+       </property>
+      </widget>
+      <widget class="QPlainTextEdit" name="console">
+       <property name="font">
+        <font>
+         <family>Consolas</family>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1146</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFails">
+    <property name="title">
+     <string>Fails</string>
+    </property>
+    <addaction name="actionIelas_t_att_lu"/>
+    <addaction name="actionKalibr_t_kameru"/>
+    <addaction name="separator"/>
+    <addaction name="actionIelas_t_projektu"/>
+    <addaction name="actionSaglab_t_projektu"/>
+   </widget>
+   <widget class="QMenu" name="menuDarb_bas">
+    <property name="title">
+     <string>Darbības</string>
+    </property>
+    <addaction name="actionHorizont_lo_koordin_tu_re_is"/>
+   </widget>
+   <addaction name="menuFails"/>
+   <addaction name="menuDarb_bas"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionIelas_t_att_lu">
+   <property name="text">
+    <string>Ielasīt attēlu</string>
+   </property>
+  </action>
+  <action name="actionIelas_t_projektu">
+   <property name="text">
+    <string>Ielasīt projektu</string>
+   </property>
+  </action>
+  <action name="actionKalibr_t_kameru">
+   <property name="text">
+    <string>Kalibrēt kameru</string>
+   </property>
+  </action>
+  <action name="actionSaglab_t_projektu">
+   <property name="text">
+    <string>Saglabāt projektu</string>
+   </property>
+  </action>
+  <action name="actionHorizont_lo_koordin_tu_re_is">
+   <property name="text">
+    <string>Horizontālo koordinātu režģis</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>MplWidget</class>
+   <extends>QWidget</extends>
+   <header>mplwidget.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

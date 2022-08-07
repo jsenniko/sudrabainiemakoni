@@ -14,7 +14,7 @@ if filename_jpg=="":
     sys.exit()
 filename_stars=os.path.splitext(filename_jpg)[0]+'_zvaigznes.txt'
 if not os.path.exists(filename_stars):
-    zvfile=gui_fname(caption="Zvaigžņu fails...", filter="(*.txt)")
+    filename_stars=gui_fname(caption="Zvaigžņu fails...", filter="(*.txt)")
 case_id=os.path.splitext(os.path.split(filename_jpg)[1])[0]
 print(f'Id:{case_id}')
 print(f'Fails:{filename_jpg}')
