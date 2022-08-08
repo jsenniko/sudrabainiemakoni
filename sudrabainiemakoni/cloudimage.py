@@ -500,7 +500,9 @@ class Camera:
         # tilt - 0 deg down, zenith distance=180-tilt, elevation=tilt-90
         return azimuth, tilt-90, roll
     def get_focal_lengths_mm(self):
-        return
+        camera_enu=self.camera_enu
+        
+        return camera_enu.focallength_x_px * 36.0 / camera_enu.image_width_px, camera_enu.focallength_y_px * 36.0 / camera_enu.image_width_px
     @classmethod
     def ecef_from_enu(cls, camera_enu, lat_deg, lon_deg, height_m):
         import copy
@@ -613,11 +615,16 @@ class CloudImage:
         print('UTC:', cldim.date)
         print(cldim.location.to_geodetic())
         # uzstādām zvaigžņu sarakstu
-        df = pd.read_csv(filename_stars, sep='\t', header=None)
-        # zvaigžņu nosaukumi pirmajā kolonā
-        starnames = df[0]
-        # atbilstošās pikseļu koordinātes otrajā un trešajā kolonā
-        pixels=np.array(df[[1,2]])
+        try:
+            df = pd.read_csv(filename_stars, sep='\t', header=None)
+            # zvaigžņu nosaukumi pirmajā kolonā
+            starnames = df[0]
+            # atbilstošās pikseļu koordinātes otrajā un trešajā kolonā
+            pixels=np.array(df[[1,2]])
+        except:
+            starnames=[]
+            pixels=[]
+            
         cldim.setStarReferences(starnames, pixels)
         # izdrukājam zvaigžņu ekvatoriālās un pikseļu koordinātes pārbaudes nolūkos
         print(cldim.getSkyCoords())
@@ -662,15 +669,24 @@ class CloudImage:
         # ITRS koordinātu sistēma, kas atbilst novērošanas laikam (būs nepieciešama tālāk, ģoecentrikso koordināšu noteikšanai)
         self.itrs = astropy.coordinates.ITRS(obstime=self.date)
     def setStarReferences(self, starList, pixelList):
-        assert(len(starList==len(pixelList)))
+        assert(len(starList)==len(pixelList))
         self.starReferences = [StarReference(star, pixel) for star, pixel in zip(starList, pixelList)]
         for r in self.starReferences:
             r.getSkyCoord()
-
+    def saveStarReferences(self, filename):
+        
+        df=pd.DataFrame({'name':[r.name for r in self.starReferences],
+                         'ix':[r.pixelcoords[0] for r in self.starReferences],
+                         'iy':[r.pixelcoords[1] for r in self.starReferences]})
+        df.to_csv(filename, sep='\t', header=None, index=False)
+        
     def getPixelCoords(self):
         return np.array([r.pixelcoords for r in self.starReferences])
     def getSkyCoords(self):
-        return astropy.coordinates.SkyCoord([r.skycoord for r in self.starReferences])
+        try:
+            return astropy.coordinates.SkyCoord([r.skycoord for r in self.starReferences])
+        except:
+            return []
     def GetWCS(self, sip_degree = 2,  fit_parameters={}):
         # izveidojam WCS priekš attēla (world coordinate system)
         # sip ir 'Simple Imaging Polynomial' https://irsa.ipac.caltech.edu/data/SPITZER/docs/files/spitzer/shupeADASS.pdf

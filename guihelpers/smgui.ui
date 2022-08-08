@@ -57,18 +57,28 @@
      <string>Fails</string>
     </property>
     <addaction name="actionIelas_t_att_lu"/>
-    <addaction name="actionKalibr_t_kameru"/>
     <addaction name="separator"/>
     <addaction name="actionIelas_t_projektu"/>
     <addaction name="actionSaglab_t_projektu"/>
    </widget>
    <widget class="QMenu" name="menuDarb_bas">
     <property name="title">
-     <string>Darbības</string>
+     <string>Zīmēt</string>
     </property>
+    <addaction name="actionAtt_lu"/>
     <addaction name="actionHorizont_lo_koordin_tu_re_is"/>
    </widget>
+   <widget class="QMenu" name="menuZ_m_t">
+    <property name="title">
+     <string>Darbības</string>
+    </property>
+    <addaction name="actionCiparot_zvaigznes"/>
+    <addaction name="separator"/>
+    <addaction name="actionKalibr_t_kameru"/>
+    <addaction name="separator"/>
+   </widget>
    <addaction name="menuFails"/>
+   <addaction name="menuZ_m_t"/>
    <addaction name="menuDarb_bas"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
@@ -95,6 +105,16 @@
   <action name="actionHorizont_lo_koordin_tu_re_is">
    <property name="text">
     <string>Horizontālo koordinātu režģis</string>
+   </property>
+  </action>
+  <action name="actionCiparot_zvaigznes">
+   <property name="text">
+    <string>Ciparot zvaigznes</string>
+   </property>
+  </action>
+  <action name="actionAtt_lu">
+   <property name="text">
+    <string>Attēls</string>
    </property>
   </action>
  </widget>
