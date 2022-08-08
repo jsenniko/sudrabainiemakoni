@@ -11,6 +11,6 @@ def gui_dir(directory=None, caption=""):
     if directory is None: directory ='./'
     fname = QFileDialog.getExistingDirectory(None, caption=caption, directory=directory)
     return fname
-def gui_string(name="",caption=""):
-    res, Ok = QInputDialog.getText(None, name, caption)
+def gui_string(text="",name="",caption=""):
+    res, Ok = QInputDialog.getText(None, name, caption, text=text)
     return res if Ok else None

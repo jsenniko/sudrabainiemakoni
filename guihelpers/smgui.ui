@@ -60,13 +60,22 @@
     <addaction name="separator"/>
     <addaction name="actionIelas_t_projektu"/>
     <addaction name="actionSaglab_t_projektu"/>
+    <addaction name="actionIelas_t_otro_projektu"/>
+    <addaction name="separator"/>
+    <addaction name="actionIelas_t_kontrolpunktus"/>
    </widget>
    <widget class="QMenu" name="menuDarb_bas">
     <property name="title">
      <string>Zīmēt</string>
     </property>
     <addaction name="actionAtt_lu"/>
+    <addaction name="separator"/>
     <addaction name="actionHorizont_lo_koordin_tu_re_is"/>
+    <addaction name="separator"/>
+    <addaction name="actionProjic_t"/>
+    <addaction name="actionProjic_t_kop"/>
+    <addaction name="separator"/>
+    <addaction name="actionKontrolpunktu_augstumus"/>
    </widget>
    <widget class="QMenu" name="menuZ_m_t">
     <property name="title">
@@ -76,6 +85,10 @@
     <addaction name="separator"/>
     <addaction name="actionKalibr_t_kameru"/>
     <addaction name="separator"/>
+    <addaction name="actionProjekcijas_apgabals"/>
+    <addaction name="actionKartes_apgabals"/>
+    <addaction name="separator"/>
+    <addaction name="actionKontrolpunkti"/>
    </widget>
    <addaction name="menuFails"/>
    <addaction name="menuZ_m_t"/>
@@ -93,6 +106,9 @@
    </property>
   </action>
   <action name="actionKalibr_t_kameru">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
    <property name="text">
     <string>Kalibrēt kameru</string>
    </property>
@@ -103,18 +119,67 @@
    </property>
   </action>
   <action name="actionHorizont_lo_koordin_tu_re_is">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
    <property name="text">
     <string>Horizontālo koordinātu režģis</string>
    </property>
   </action>
   <action name="actionCiparot_zvaigznes">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
    <property name="text">
     <string>Ciparot zvaigznes</string>
    </property>
   </action>
   <action name="actionAtt_lu">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
    <property name="text">
     <string>Attēls</string>
+   </property>
+  </action>
+  <action name="actionProjic_t">
+   <property name="text">
+    <string>Projicēt</string>
+   </property>
+  </action>
+  <action name="actionProjekcijas_apgabals">
+   <property name="text">
+    <string>Projekcijas apgabals</string>
+   </property>
+  </action>
+  <action name="actionKartes_apgabals">
+   <property name="text">
+    <string>Kartes apgabals</string>
+   </property>
+  </action>
+  <action name="actionIelas_t_otro_projektu">
+   <property name="text">
+    <string>Ielasīt otro projektu</string>
+   </property>
+  </action>
+  <action name="actionProjic_t_kop">
+   <property name="text">
+    <string>Projicēt kopā</string>
+   </property>
+  </action>
+  <action name="actionKontrolpunkti">
+   <property name="text">
+    <string>Kontrolpunkti</string>
+   </property>
+  </action>
+  <action name="actionIelas_t_kontrolpunktus">
+   <property name="text">
+    <string>Ielasīt kontrolpunktus</string>
+   </property>
+  </action>
+  <action name="actionKontrolpunktu_augstumus">
+   <property name="text">
+    <string>Kontrolpunktu augstumus</string>
    </property>
   </action>
  </widget>

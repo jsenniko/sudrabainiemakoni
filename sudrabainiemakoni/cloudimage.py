@@ -126,6 +126,11 @@ class WebMercatorImage:
     TRAN_3857_TO_4326 = pyproj. Transformer.from_crs("EPSG:3857","EPSG:4326")
 
     def __init__(self, cloudImage, lonmin, lonmax, latmin, latmax, pixel_per_km):
+        self.lonmin = lonmin
+        self.lonmax = lonmax
+        self.latmin = latmin
+        self.latmax = latmax
+        self.pixel_per_km = pixel_per_km
         bounds = [(lonmin,latmin),(lonmin,latmax),(lonmax,latmin),(lonmax,latmax)]
         x, y = WebMercatorImage.TRAN_4326_TO_3857.transform([b[1] for b in bounds],[b[0] for b in bounds])
         self.xmin = min(x)
@@ -144,16 +149,19 @@ class WebMercatorImage:
         self.lat_grid, self.lon_grid = WebMercatorImage.TRAN_3857_TO_4326.transform(self.x_grid.flatten(),self.y_grid.flatten())
         self.lon_grid = self.lon_grid.reshape(self.x_grid.shape)
         self.lat_grid = self.lat_grid.reshape(self.x_grid.shape)
-
+    fields = {"lonmin","lonmax","latmin","latmax","lonmin","pixel_per_km","xmin", "xmax", "ymin", "ymax", "npix_x", "npix_y"}
     def __getstate__(self):
         state = self.__dict__
-        fields = {"xmin", "xmax", "ymin", "ymax", "npix_x", "npix_y"}
-        return {x: state[x] for x in fields}
+        return {x: state[x] for x in WebMercatorImage.fields}
     def __setstate__(self, state):
-        fields = {"xmin", "xmax", "ymin", "ymax", "npix_x", "npix_y"}
-        for x in fields:
+        for x in WebMercatorImage.fields:
             setattr(self, x, state[x])
         self.initialize()
+
+    def __str__(self):
+        return {k:v for k, v in self.__dict__.items() if k in WebMercatorImage.fields}.__str__()
+    def __repr__(self):
+        return {k:v for k, v in self.__dict__.items() if k in WebMercatorImage.fields}.__repr__()
 
     def prepare_reproject(self, height_km):
         height = height_km* u.km
@@ -268,7 +276,7 @@ class WebMercatorImage:
             d = pickle.load(f)
         d.cloudImage = cloudImage
         return d
-
+    
 
     def PrepareHeightMap(self, point_longitudes, point_latitudes, point_heights):
         import pykrige
@@ -871,7 +879,7 @@ class CloudImagePair:
         self.cloudImage1 = cloudImage1
         self.cloudImage2 = cloudImage2
         self.reproject = Reprojector_12(self)
-        self.correspondances = (np.array([]),np.array([]))
+        self.correspondances = [np.empty(shape=(0,2)),np.empty(shape=(0,2))]
 
     def InitCameraGroup(self):
         camera1 = self.cloudImage1.camera.camera_ecef
@@ -943,11 +951,19 @@ class CloudImagePair:
             df = pd.read_csv(filename, sep='\t', header=[0,1])
             pts1=np.array(df.iloc[:,[0,1]])
             pts2=np.array(df.iloc[:,[2,3]])
-            self.correspondances = (pts1, pts2)
+            self.correspondances = [pts1, pts2]
         else:
             print(f'ATBILSTības fails {filename} neeksistē!')
-            self.correspondances = (np.array([]),np.array([]))
-
+            self.correspondances = [np.empty(shape=(0,2)),np.empty(shape=(0,2))]
+    def SaveCorrespondances(self, filename):
+        ll=min(len(self.correspondances[0]),len(self.correspondances[1]))
+        self.correspondances[0]=self.correspondances[0][0:ll]
+        self.correspondances[1]=self.correspondances[1][0:ll]
+        pd.DataFrame({(self.cloudImage1.code,'i'): self.correspondances[0][:,0],
+                      (self.cloudImage1.code,'j'): self.correspondances[0][:,1],
+                      (self.cloudImage2.code,'i'): self.correspondances[1][:,0],
+                      (self.cloudImage2.code,'j'): self.correspondances[1][:,1],
+                      }).to_csv(filename, sep='\t', index=False)
     # sākotnējā metode
     def GetReferencePointPositions(self):
         result = []

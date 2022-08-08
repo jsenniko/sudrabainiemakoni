@@ -169,8 +169,14 @@ def PlotEpilineGrid(imagearray, epilines, pts = None, filename=None):
     else:
         fig.savefig(filename, dpi=300, bbox_inches='tight')
         plt.close()
-def PlotValidHeightPoints(imagearray, epilines, pts, heightpoints, valid, filename=None):
-    fig, ax=plt.subplots(figsize=(20,10))
+def PlotValidHeightPoints(imagearray, epilines, pts, heightpoints, valid, filename=None, ax=None):
+    if ax is None:
+        doPlot=True
+        fig, ax = plt.subplots(figsize=(20,10))
+    else:
+        doPlot=False
+        fig=ax.figure
+        
     ax.imshow(imagearray)
     if valid is None:
         valid = np.zeros(shape=pts.shape[0], dtype='bool')
@@ -188,12 +194,17 @@ def PlotValidHeightPoints(imagearray, epilines, pts, heightpoints, valid, filena
     ax.set_xticklabels([])
     ax.set_yticks([])
     ax.set_xticks([])
-    fig.colorbar(cs)
-    if filename is None:
-        plt.show()
-    else:
+    if ax is None:
+        fig.colorbar(cs)
+    
+    
+    if filename is not None:
         fig.savefig(filename, dpi=300, bbox_inches='tight')
-        plt.close()
+    if doPlot:
+        if filename is None:
+            plt.show()
+        else:
+            plt.close()    
 
 
 def InitPlotReferencedImages(webmerc: WebMercatorImage,
@@ -215,7 +226,8 @@ def PlotReferencedImages(webmerc: WebMercatorImage,
                          lonmin=15, lonmax=30, latmin=56, latmax=62,
                          alpha=0.8,
                          ax=None,
-                         initData = None):
+                         initData = None,
+                         plotMap = True,):
     import tilemapbase
     if initData is None:
         tilemapbase.init(create=True)
@@ -238,8 +250,8 @@ def PlotReferencedImages(webmerc: WebMercatorImage,
         fig=ax.figure
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
-
-    plotter.plot(ax, t)
+    if plotMap:
+        plotter.plot(ax, t)
     try:
         alphas=list(alpha)
     except:
