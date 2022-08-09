@@ -13,10 +13,10 @@ import cameratransform as ct
 import pymap3d
 from scipy.spatial.transform import Rotation
 import scipy.optimize
-import utils
-import geoutils
-import optimize_camera
-import calculations
+from sudrabainiemakoni import utils
+from sudrabainiemakoni import geoutils
+from sudrabainiemakoni import optimize_camera
+from sudrabainiemakoni import calculations
 class StarReference:
     def __init__(self, name, pixelcoords):
         self.name = name
@@ -524,7 +524,7 @@ class Camera:
     def get_focal_lengths_mm(self):
         camera_enu=self.camera_enu
         
-        return camera_enu.focallength_x_px * 36.0 / camera_enu.image_width_px, camera_enu.focallength_y_px * 36.0 / camera_enu.image_width_px
+        return camera_enu.focallength_x_px * 36.0 / camera_enu.image_width_px, camera_enu.focallength_y_px * 36.0 / camera_enu.image_width_px, camera_enu.center_x_px, camera_enu.center_y_px
     @classmethod
     def ecef_from_enu(cls, camera_enu, lat_deg, lon_deg, height_m):
         import copy

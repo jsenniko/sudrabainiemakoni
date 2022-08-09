@@ -7,9 +7,9 @@ import numpy as np
 import astropy
 import astropy.coordinates
 import astropy.units
-import labelatedge
-from cloudimage import CloudImage, WebMercatorImage
-from calculations import GetImageRaDecGrid
+from sudrabainiemakoni import labelatedge
+from sudrabainiemakoni.cloudimage import CloudImage, WebMercatorImage
+from sudrabainiemakoni.calculations import GetImageRaDecGrid
 def PlotStars(cloudImage: CloudImage, ax):
     for sr in cloudImage.starReferences:
         ix, iy = sr.pixelcoords
