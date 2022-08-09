@@ -1,7 +1,5 @@
 import sys
 import os
-import shutil
-import pandas as pd
 import numpy as np
 from PyQt5.QtWidgets import QMainWindow, QApplication, QFileDialog
 from PyQt5 import QtGui, QtCore
