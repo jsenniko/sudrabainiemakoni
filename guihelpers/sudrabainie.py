@@ -4,7 +4,7 @@ import numpy as np
 from PyQt5.QtWidgets import QMainWindow, QApplication, QFileDialog
 from PyQt5 import QtGui, QtCore
 #from matplotlib.backend_tools import Cursors
-from sudrabainiemakoni.cloudimage import CloudImage, StarReference, WebMercatorImage, CloudImagePair
+from sudrabainiemakoni.cloudimage import CloudImage, StarReference, WebMercatorImage, CloudImagePair, HeightMap
 from sudrabainiemakoni import plots, utils
 from smgui import Ui_MainWindow
 from qthelper import gui_fname, gui_string
@@ -39,24 +39,54 @@ class MainW (QMainWindow, Ui_MainWindow):
         self.actionCiparot_zvaigznes.triggered.connect(self.CiparotZvaigznesClick)
         self.actionProjic_t.triggered.connect(lambda: self.ProjicetClick(tips=0))
         self.actionProjic_t_kop.triggered.connect(lambda: self.ProjicetClick(tips=2))
+        self.actionProjic_t_no_augstumu_kartes.triggered.connect(lambda: self.ProjicetNoKartesClick(tips=0))
+        self.actionProjic_t_kop_no_augstumu_kartes.triggered.connect(lambda: self.ProjicetNoKartesClick(tips=2))
         self.actionProjekcijas_apgabals.triggered.connect(self.MainitApgabalu)
         self.actionKartes_apgabals.triggered.connect(self.KartesApgabals)
         self.actionKontrolpunkti.triggered.connect(self.CiparotKontrolpunktusClick)
         self.actionIelas_t_kontrolpunktus.triggered.connect(self.IelasitKontrolpunktus)
         self.actionKontrolpunktu_augstumus.triggered.connect(self.ZimetKontrolpunktuAugstumus)
+        self.actionIzveidot_augstumu_karti.triggered.connect(self.IzveidotAugstumuKarti)
+        self.actionIelas_t_augstumu_karti.triggered.connect(self.IelasitAugstumuKarti)
+        self.actionSaglab_t_augstumu_karti.triggered.connect(self.SaglabatAugstumuKarti)
+        self.actionAugstumu_karti.triggered.connect(self.ZimetAugstumuKarti)
         
         sys.stdout = Stream(newText=self.onUpdateText)
         sys.stderr = Stream(newText=self.onUpdateText)
+        
+        
+        
         self.cloudimage = None
         self.cloudimage2 = None
         self.webmerc = WebMercatorImage(self.cloudimage, 17,33,56,63,1.0)
         self.projHeight = 80 #km
         self.map_bounds=[17,33,56,63]
         self.map_alpha=0.85
+        self.heightmap = None
 
         
         self.isCiparotZvaigznes = None
         self.isCiparotKontrolpunkti=None
+        
+    def pelekot(self):
+        self.actionKalibr_t_kameru.setEnabled(self.cloudimage is not None)
+        self.actionSaglab_t_projektu.setEnabled(self.cloudimage is not None)
+        self.actionIelas_t_otro_projektu.setEnabled(self.cloudimage is not None)
+        self.actionHorizont_lo_koordin_tu_re_is.setEnabled(self.cloudimage is not None and hasattr(self.cloudimage,'camera'))
+        self.actionAtt_lu.setEnabled(self.cloudimage is not None)
+        self.actionCiparot_zvaigznes.setEnabled(self.cloudimage is not None)
+        self.actionProjic_t.setEnabled(self.cloudimage is not None and hasattr(self.cloudimage,'camera'))
+        self.actionProjic_t_kop.setEnabled(self.cloudimage is not None and hasattr(self.cloudimage,'camera') and self.cloudimage2 is not None)
+        self.actionKontrolpunkti.setEnabled(self.cloudimage is not None and self.cloudimage2 is not None)
+        self.actionIelas_t_kontrolpunktus.setEnabled(self.cloudimage is not None and self.cloudimage2 is not None)     
+        self.actionKontrolpunktu_augstumus.setEnabled(self.cpair is not None)
+        self.actionIzveidot_augstumu_karti.setEnabled(self.cpair is not None)
+        self.actionIelas_t_augstumu_karti.setEnabled(self.cloudimage is not None)
+        self.actionSaglab_t_augstumu_karti.setEnabled(self.heightmap is not None)
+        self.actionAugstumu_karti.setEnabled(self.heightmap is not None)
+        self.actionProjic_t_no_augstumu_kartes.setEnabled(self.heightmap is not None and self.cloudimage is not None)
+        self.actionProjic_t_kop_no_augstumu_kartes.setEnabled(self.heightmap is not None and self.cloudimage is not None and self.cloudimage2 is not None)
+                                                           
     def onUpdateText(self, text):
         #https://stackoverflow.com/a/44433766
         cursor = self.console.textCursor()
@@ -83,6 +113,7 @@ class MainW (QMainWindow, Ui_MainWindow):
         lat,lon = smhelper.check_latlon_file(filename_jpg)
         self.cloudimage = CloudImage.from_files(case_id, filename_jpg, filename_stars, lat, lon)
         self.ZimetAttelu()
+        self.pelekot()
     def KalibretKameruClick(self):
         if self.cloudimage is not None:
             cldim = self.cloudimage
@@ -93,28 +124,32 @@ class MainW (QMainWindow, Ui_MainWindow):
             print(f'Kameras pagrieziena leņķis {rot:.2f}°')
             fx,fy = cldim.camera.get_focal_lengths_mm()
             print(f'Kameras fokusa attālumi (35mm ekvivalents) {fx:.1f} {fy:.1f}')
+        self.pelekot()
     def NolasitProjektu(self):
         
         projfile, _ = QFileDialog.getOpenFileName( 
                                                filter='(*.proj)',
                                                caption='Projekta fails')
-        self.cloudimage2 = None
-        self.cpair = None
-        self.console.clear()
-        self.cloudimage = CloudImage.load(projfile)
-        print(f'Loaded project file {projfile}')
-        print(self.cloudimage)
-        self.ZimetAttelu()
+        if projfile!='':
+            self.cloudimage2 = None
+            self.cpair = None
+            self.console.clear()
+            self.cloudimage = CloudImage.load(projfile)
+            print(f'Loaded project file {projfile}')
+            print(self.cloudimage)
+            self.ZimetAttelu()
+        self.pelekot()
     def NolasitProjektu2(self):
         projfile, _ = QFileDialog.getOpenFileName( 
                                                filter='(*.proj)',
                                                caption='Projekta fails')
-        #self.console.clear()
-        self.cpair = None
-        self.cloudimage2 = CloudImage.load(projfile)
-        print(f'Loaded project file {projfile}')
-        print(self.cloudimage2)
-        self.ZimetAttelu(otrs=True)
+        if projfile!='':
+            self.cpair = None
+            self.cloudimage2 = CloudImage.load(projfile)
+            print(f'Loaded project file {projfile}')
+            print(self.cloudimage2)
+            self.ZimetAttelu(otrs=True)
+        self.pelekot()
         
     def SaglabatProjektu(self):
         projfile = os.path.splitext(self.cloudimage.filename)[0]+'.proj'
@@ -238,6 +273,12 @@ class MainW (QMainWindow, Ui_MainWindow):
                 except:
                     print('Nepareiza ievade!')
                     raise
+    def ProjicetNoKartesClick(self, tips=0):
+        if hasattr(self.cloudimage,"camera") and self.heightmap is not None:
+            if tips in [0,1]:
+                self.Projicet(self.heightmap.heightmap/1000.0, atseviski=tips==0)
+            else:
+                self.ProjicetVidejotuAttelu(self.heightmap.heightmap/1000.0)
             
     def plotProjicet(self, pimages, ax, plotMap=True, plotPoints=True):
             pp=[[self.cloudimage.location.lon.value, self.cloudimage.location.lat.value]]
@@ -253,12 +294,12 @@ class MainW (QMainWindow, Ui_MainWindow):
 
     def Projicet(self, projHeight, atseviski=True):
             self.webmerc.cloudImage = self.cloudimage
-            self.webmerc.prepare_reproject_from_camera(self.projHeight)
+            self.webmerc.prepare_reproject_from_camera(projHeight)
             projected_image=self.webmerc.Fill_projectedImageMasked()
             pimages=[projected_image]
             if self.cloudimage2 is not None:
                 self.webmerc.cloudImage = self.cloudimage2
-                self.webmerc.prepare_reproject_from_camera(self.projHeight)
+                self.webmerc.prepare_reproject_from_camera(projHeight)
                 projected_image2=self.webmerc.Fill_projectedImageMasked()
                 pimages.append(projected_image2)
                 self.webmerc.cloudImage = self.cloudimage
@@ -276,11 +317,11 @@ class MainW (QMainWindow, Ui_MainWindow):
     def ProjicetVidejotuAttelu(self, projHeight):
         if self.cloudimage2 is not None:
             self.webmerc.cloudImage = self.cloudimage
-            self.webmerc.prepare_reproject_from_camera(self.projHeight)
+            self.webmerc.prepare_reproject_from_camera(projHeight)
             projected_image=self.webmerc.Fill_projectedImage()
             pimages=[projected_image]
             self.webmerc.cloudImage = self.cloudimage2
-            self.webmerc.prepare_reproject_from_camera(self.projHeight)
+            self.webmerc.prepare_reproject_from_camera(projHeight)
             projected_image2=self.webmerc.Fill_projectedImage()
             pimages.append(projected_image2)
             self.webmerc.cloudImage = self.cloudimage
@@ -313,7 +354,7 @@ class MainW (QMainWindow, Ui_MainWindow):
             try:
                 s=[float(x) for x in s.split(',')]
                 if len(s)==5:
-                    self.bounds=s[:4]
+                    self.map_bounds=s[:4]
                     self.map_alpha=max(min(s[4],1.0),0.0)                    
             except:
                 print('Nepareiza ievade!')
@@ -384,20 +425,17 @@ class MainW (QMainWindow, Ui_MainWindow):
             ll=min(len(self.cpair.correspondances[0]),len(self.cpair.correspondances[1]))
             self.cpair.correspondances[0]=self.cpair.correspondances[0][0:ll]
             self.cpair.correspondances[1]=self.cpair.correspondances[1][0:ll]
-
-
-            self.MplWidget1.canvas.fig.set_facecolor('white')
-            #filename_stars=os.path.splitext(self.cloudimage.filename)[0]+'_zvaigznes.txt'
-            #self.cloudimage.saveStarReferences(filename_stars)
             matchfile = f'{os.path.split(self.cloudimage.filename)[0]}/{self.cloudimage.code}_{self.cloudimage2.code}.txt'
             matchfile, _ = QFileDialog.getSaveFileName(directory=matchfile, 
                                                filter='(*.txt)',
                                                caption='Atbilstību fails')
             if matchfile!='':
-
                 self.cpair.SaveCorrespondances(matchfile)
-            self.ZimetAttelu(otrs=True)
+            self.MplWidget1.canvas.fig.set_facecolor('white')
+            self.ZimetAttelu(otrs=True, kontrolpunkti=True)
         self.isCiparotKontrolpunkti = None
+        self.pelekot()
+
     def IelasitKontrolpunktus(self):
         if self.cloudimage2 is not None:
             matchfile = f'{os.path.split(self.cloudimage.filename)[0]}/{self.cloudimage.code}_{self.cloudimage2.code}.txt'
@@ -406,6 +444,7 @@ class MainW (QMainWindow, Ui_MainWindow):
                 self.cpair=CloudImagePair(self.cloudimage, self.cloudimage2)
                 self.cpair.LoadCorrespondances(matchfile)
                 self.ZimetAttelu(otrs=True, kontrolpunkti=True)
+        self.pelekot()
                 
     def plotMatches(self, ax, pairNo):
         if self.cpair is not None:
@@ -430,7 +469,53 @@ class MainW (QMainWindow, Ui_MainWindow):
             plots.PlotValidHeightPoints(self.cloudimage2.imagearray,epilines,self.cpair.correspondances[1] , llh[2], None,
                             ax=ax2)
             self.MplWidget1.canvas.draw()
-        
+    def IzveidotAugstumuKarti(self):
+        if self.cpair is not None:
+            llh, rayminimaldistance, z_intrinsic_error, valid = self.cpair.GetHeightPoints(*self.cpair.correspondances)
+            self.webmerc.cloudimage = self.cloudimage
+            heightgrid = self.webmerc.PrepareHeightMap(llh[1][valid],llh[0][valid],llh[2][valid])
+            self.heightmap = HeightMap(self.webmerc)
+            self.heightmap.heightmap = heightgrid
+            self.heightmap.points = llh
+            self.heightmap.validpoints = valid
+            self.ZimetAugstumuKarti()
+            self.pelekot()
+    def SaglabatAugstumuKarti(self):
+        if self.heightmap is not None:
+            projfile = os.path.splitext(self.cloudimage.filename)[0]+'.hmp'
+            projfile, _ = QFileDialog.getSaveFileName(directory=projfile, 
+                                                   filter='(*.hmp)',
+                                                   caption='Augstumu kartes fails')
+            if projfile!='':
+                self.heightmap.save(projfile)
+                print(f'Saved heightmap {projfile}')
+    def IelasitAugstumuKarti(self):
+        if self.cloudimage is not None:
+            projfile = os.path.splitext(self.cloudimage.filename)[0]+'.hmp'
+            projfile, _ = QFileDialog.getOpenFileName(directory=projfile, 
+                                                   filter='(*.hmp)',
+                                                   caption='Augstumu kartes fails')
+            if projfile!='':
+                self.heightmap = HeightMap.load(projfile)
+                self.webmerc = self.heightmap.webmerc
+                print(f'Saved heightmap {projfile}')
+            self.pelekot()
+    def ZimetAugstumuKarti(self):
+        if self.heightmap is not None:
+            self.MplWidget1.canvas.initplot()     
+            ax = self.MplWidget1.canvas.ax
+            csl=plots.PlotReferencedImages(self.webmerc, [self.heightmap.heightmap],  camera_points=[],
+                                   outputFileName=None,
+                                   lonmin=self.map_bounds[0], lonmax=self.map_bounds[1], latmin=self.map_bounds[2], latmax=self.map_bounds[3],
+                                   showplot=True,
+                                   alpha=0.8, ax=ax)
+            import tilemapbase
+            llh = self.heightmap.points
+            valid = self.heightmap.validpoints
+            xy=np.array([tilemapbase.project(lon,lat) for lon,lat in zip(llh[1][valid],llh[0][valid])])
+            cs=ax.scatter(xy[:,0],xy[:,1], c=llh[2][valid], norm=csl[0].norm, cmap=csl[0].cmap)
+            ax.figure.colorbar(csl[0])
+            self.MplWidget1.canvas.draw()
 if __name__ == '__main__':
 
     app = QApplication(sys.argv)

@@ -319,8 +319,22 @@ class WebMercatorImage:
         dst_ds.GetRasterBand(1).WriteArray(result2D)
         dst_ds.FlushCache()
         dst_ds = None
+    
 
-
+class HeightMap:
+    def __init__(self, webmerc: WebMercatorImage):
+        self.webmerc = webmerc
+        self.heightmap = None
+    def save(self, filename):
+        import pickle
+        with open(filename, 'wb') as f:
+            pickle.dump(self, f)
+    @classmethod
+    def load(cls, filename, cloudImage = None):
+        import pickle
+        with open(filename, 'rb') as f:
+            d = pickle.load(f)
+        return d
 
 
 class Camera:

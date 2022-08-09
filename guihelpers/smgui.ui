@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>Sudrabaino mākoņu apstrādes programma</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -63,6 +63,9 @@
     <addaction name="actionIelas_t_otro_projektu"/>
     <addaction name="separator"/>
     <addaction name="actionIelas_t_kontrolpunktus"/>
+    <addaction name="separator"/>
+    <addaction name="actionIelas_t_augstumu_karti"/>
+    <addaction name="actionSaglab_t_augstumu_karti"/>
    </widget>
    <widget class="QMenu" name="menuDarb_bas">
     <property name="title">
@@ -74,8 +77,11 @@
     <addaction name="separator"/>
     <addaction name="actionProjic_t"/>
     <addaction name="actionProjic_t_kop"/>
+    <addaction name="actionProjic_t_no_augstumu_kartes"/>
+    <addaction name="actionProjic_t_kop_no_augstumu_kartes"/>
     <addaction name="separator"/>
     <addaction name="actionKontrolpunktu_augstumus"/>
+    <addaction name="actionAugstumu_karti"/>
    </widget>
    <widget class="QMenu" name="menuZ_m_t">
     <property name="title">
@@ -89,6 +95,8 @@
     <addaction name="actionKartes_apgabals"/>
     <addaction name="separator"/>
     <addaction name="actionKontrolpunkti"/>
+    <addaction name="separator"/>
+    <addaction name="actionIzveidot_augstumu_karti"/>
    </widget>
    <addaction name="menuFails"/>
    <addaction name="menuZ_m_t"/>
@@ -107,20 +115,23 @@
   </action>
   <action name="actionKalibr_t_kameru">
    <property name="enabled">
-    <bool>true</bool>
+    <bool>false</bool>
    </property>
    <property name="text">
     <string>Kalibrēt kameru</string>
    </property>
   </action>
   <action name="actionSaglab_t_projektu">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="text">
     <string>Saglabāt projektu</string>
    </property>
   </action>
   <action name="actionHorizont_lo_koordin_tu_re_is">
    <property name="enabled">
-    <bool>true</bool>
+    <bool>false</bool>
    </property>
    <property name="text">
     <string>Horizontālo koordinātu režģis</string>
@@ -128,7 +139,7 @@
   </action>
   <action name="actionCiparot_zvaigznes">
    <property name="enabled">
-    <bool>true</bool>
+    <bool>false</bool>
    </property>
    <property name="text">
     <string>Ciparot zvaigznes</string>
@@ -136,13 +147,16 @@
   </action>
   <action name="actionAtt_lu">
    <property name="enabled">
-    <bool>true</bool>
+    <bool>false</bool>
    </property>
    <property name="text">
     <string>Attēls</string>
    </property>
   </action>
   <action name="actionProjic_t">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="text">
     <string>Projicēt</string>
    </property>
@@ -158,28 +172,91 @@
    </property>
   </action>
   <action name="actionIelas_t_otro_projektu">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="text">
     <string>Ielasīt otro projektu</string>
    </property>
   </action>
   <action name="actionProjic_t_kop">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="text">
     <string>Projicēt kopā</string>
    </property>
   </action>
   <action name="actionKontrolpunkti">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="text">
     <string>Kontrolpunkti</string>
    </property>
   </action>
   <action name="actionIelas_t_kontrolpunktus">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="text">
     <string>Ielasīt kontrolpunktus</string>
    </property>
   </action>
   <action name="actionKontrolpunktu_augstumus">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="text">
     <string>Kontrolpunktu augstumus</string>
+   </property>
+  </action>
+  <action name="actionIzveidot_augstumu_karti">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Izveidot augstumu karti</string>
+   </property>
+  </action>
+  <action name="actionSaglab_t_augstumu_karti">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Saglabāt augstumu karti</string>
+   </property>
+  </action>
+  <action name="actionIelas_t_augstumu_karti">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Ielasīt augstumu karti</string>
+   </property>
+  </action>
+  <action name="actionAugstumu_karti">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Augstumu karti</string>
+   </property>
+  </action>
+  <action name="actionProjic_t_no_augstumu_kartes">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Projicēt no augstumu kartes</string>
+   </property>
+  </action>
+  <action name="actionProjic_t_kop_no_augstumu_kartes">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Projicēt kopā no augstumu kartes</string>
    </property>
   </action>
  </widget>
