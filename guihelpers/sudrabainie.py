@@ -92,6 +92,7 @@ class MainW (QMainWindow, Ui_MainWindow):
 
         self.isCiparotZvaigznes = None
         self.isCiparotKontrolpunkti = None
+        self.meerit_events = None
 
     def pelekot(self):
         self.actionKalibr_t_kameru.setEnabled(self.cloudimage is not None)
@@ -212,6 +213,7 @@ class MainW (QMainWindow, Ui_MainWindow):
             print(f'Saved project file {projfile}')
 
     def ZimetAltAzClick(self):
+        self.disconnect_meerit()
         if self.cloudimage is not None:
             self.MplWidget1.canvas.initplot()
             ax = self.MplWidget1.canvas.ax
@@ -234,6 +236,7 @@ class MainW (QMainWindow, Ui_MainWindow):
         self.ZimetAttelu(otrs=self.cloudimage2 is not None)
 
     def ZimetAttelu(self, otrs=False, kontrolpunkti=False):
+        self.disconnect_meerit()
         if self.cloudimage is not None:
             if otrs and self.cloudimage2 is not None:
                 self.MplWidget1.canvas.initplot([121, 122])
@@ -415,10 +418,6 @@ class MainW (QMainWindow, Ui_MainWindow):
         ax.format_coord = xy_latlon_str
 
         self.meerit = None
-        self.MplWidget1.canvas.mpl_connect(
-            'button_press_event', self.onclick_meritattalumu)
-        self.MplWidget1.canvas.mpl_connect(
-            'motion_notify_event', self.move_meritattalumu)
         pp = [[self.cloudimage.location.lon.value,
                self.cloudimage.location.lat.value]]
         if self.cloudimage2 is not None:
@@ -432,8 +431,21 @@ class MainW (QMainWindow, Ui_MainWindow):
                                    alpha=self.map_alpha,
                                    ax=ax,
                                    plotMap=plotMap)
-
+    def disconnect_meerit(self):
+        if self.meerit_events is not None:
+            for e in self.meerit_events:
+                self.MplWidget1.canvas.mpl_disconnect(e)
+            self.meerit_events=None
+    def connect_meerit(self):
+        self.meerit_events = [self.MplWidget1.canvas.mpl_connect(
+            'button_press_event', self.onclick_meritattalumu),
+        self.MplWidget1.canvas.mpl_connect(
+            'motion_notify_event', self.move_meritattalumu)]
+            
     def Projicet(self, projHeight, atseviski=True):
+        
+        self.disconnect_meerit()
+        
         self.webmerc.cloudImage = self.cloudimage
         self.webmerc.prepare_reproject_from_camera(projHeight)
         projected_image = self.webmerc.Fill_projectedImageMasked()
@@ -454,10 +466,14 @@ class MainW (QMainWindow, Ui_MainWindow):
         else:
             self.MplWidget1.canvas.initplot()
             self.plotProjicet(pimages, self.MplWidget1.canvas.ax)
+
+        self.connect_meerit()
         self.MplWidget1.canvas.draw()
         self.pelekot()
 
     def ProjicetVidejotuAttelu(self, projHeight):
+        self.disconnect_meerit()
+        
         if self.cloudimage2 is not None:
             self.webmerc.cloudImage = self.cloudimage
             self.webmerc.prepare_reproject_from_camera(projHeight)
@@ -478,7 +494,7 @@ class MainW (QMainWindow, Ui_MainWindow):
             self.plotProjicet(
                 [img_bicolor[(0, 1)]], self.MplWidget1.canvas.ax[2], plotMap=False, plotPoints=False)
             self.MplWidget1.canvas.draw()
-
+            self.connect_meerit()
     def MainitApgabalu(self):
         w = self.webmerc
         text = f'{w.lonmin},{w.lonmax},{w.latmin},{w.latmax},{w.pixel_per_km}'
@@ -564,6 +580,7 @@ class MainW (QMainWindow, Ui_MainWindow):
             self.pairNo = (self.pairNo + 1) % 2
 
     def CiparotKontrolpunktusClick(self):
+        
         if self.isCiparotKontrolpunkti is None:
             self.StartCiparotKontrolpunkti()
         else:
@@ -581,6 +598,7 @@ class MainW (QMainWindow, Ui_MainWindow):
 
     def StopCiparotKontrolpunkti(self):
         if self.isCiparotKontrolpunkti is not None:
+            self.MplWidget1.canvas.mpl_disconnect(self.isCiparotKontrolpunkti)
             ll = min(len(self.cpair.correspondances[0]), len(
                 self.cpair.correspondances[1]))
             self.cpair.correspondances[0] = self.cpair.correspondances[0][0:ll]
@@ -615,6 +633,8 @@ class MainW (QMainWindow, Ui_MainWindow):
                             color='#AAFFAA', fontsize=16, textcoords='offset pixels')
 
     def ZimetKontrolpunktuAugstumus(self):
+        self.disconnect_meerit()
+        
         if self.cpair is not None:
             self.MplWidget1.canvas.initplot([121, 122])
             ax = self.MplWidget1.canvas.ax[0]
@@ -676,6 +696,8 @@ class MainW (QMainWindow, Ui_MainWindow):
             self.pelekot()
 
     def ZimetAugstumuKarti(self):
+        self.disconnect_meerit()
+        
         if self.heightmap is not None:
             self.MplWidget1.canvas.initplot()
             ax = self.MplWidget1.canvas.ax
@@ -693,6 +715,7 @@ class MainW (QMainWindow, Ui_MainWindow):
             cs = ax.scatter(xy[:, 0], xy[:, 1], c=llh[2]
                             [valid], norm=csl[0].norm, cmap=csl[0].cmap)
             ax.figure.colorbar(csl[0])
+            self.connect_meerit()
             self.MplWidget1.canvas.draw()
 
     def KamerasKalibracijasParametri(self):
