@@ -12,8 +12,11 @@ python sudrabainie.py
   5. Ielasīt projektu. Ja projekts saglabāts, tad var to nolasīt, izlaižot darbības 1.-4.
   6. Zīmēt horizontālo koordinātu režģi. Nepieciešams, lai vizuāli pārliecinātos par kameras kalibrācijas labumu.
   7. Projicēt. Lietotājam jāievada provizoriskais mākoņu augstums kilometros, programma uzzīmēs uz kartes telpiski referencētu attēlu
-  8. Ielasīt otro projektu. Nepieciešams, lai veiktu sinhronās novērošanas analīzi. Otro projektu pirms tam jāsagatavo - jāciparo zvaigznes, jākalibrē kamera (sk. punktus 1.-4.)
-  9. 
+  8. Ielasīt otro projektu. Nepieciešams, lai veiktu sinhronās novērošanas analīzi. Otro projektu pirms tam jāsagatavo - jāciparo zvaigznes, jākalibrē kamera (sk. punktus 1.-4.).  
+  9. Ciparot kontrolpunktus
+  10. Zīmēt kotrolpunktu augstumus
+  11. Izveidot augstumu karti
+  12. Projicēt attēlus, izmantojot augstumu karti
 
 ### Izvēlnes
 - Fails
