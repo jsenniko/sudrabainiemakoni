@@ -91,12 +91,13 @@
     <addaction name="separator"/>
     <addaction name="actionKalibr_t_kameru"/>
     <addaction name="separator"/>
-    <addaction name="actionProjekcijas_apgabals"/>
-    <addaction name="actionKartes_apgabals"/>
-    <addaction name="separator"/>
     <addaction name="actionKontrolpunkti"/>
     <addaction name="separator"/>
     <addaction name="actionIzveidot_augstumu_karti"/>
+    <addaction name="separator"/>
+    <addaction name="actionProjekcijas_apgabals"/>
+    <addaction name="actionKartes_apgabals"/>
+    <addaction name="actionKameras_kalibr_cijas_parametri"/>
    </widget>
    <addaction name="menuFails"/>
    <addaction name="menuZ_m_t"/>
@@ -257,6 +258,11 @@
    </property>
    <property name="text">
     <string>Projicēt kopā no augstumu kartes</string>
+   </property>
+  </action>
+  <action name="actionKameras_kalibr_cijas_parametri">
+   <property name="text">
+    <string>Kameras kalibrācijas parametri</string>
    </property>
   </action>
  </widget>

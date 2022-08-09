@@ -50,6 +50,7 @@ class MainW (QMainWindow, Ui_MainWindow):
         self.actionIelas_t_augstumu_karti.triggered.connect(self.IelasitAugstumuKarti)
         self.actionSaglab_t_augstumu_karti.triggered.connect(self.SaglabatAugstumuKarti)
         self.actionAugstumu_karti.triggered.connect(self.ZimetAugstumuKarti)
+        self.actionKameras_kalibr_cijas_parametri.triggered.connect(self.KamerasKalibracijasParametri)
         
         sys.stdout = Stream(newText=self.onUpdateText)
         sys.stderr = Stream(newText=self.onUpdateText)
@@ -63,6 +64,7 @@ class MainW (QMainWindow, Ui_MainWindow):
         self.map_bounds=[17,33,56,63]
         self.map_alpha=0.85
         self.heightmap = None
+        self.camera_calib_params=dict(distortion=False, centers=True, separate_x_y=True)
 
         
         self.isCiparotZvaigznes = None
@@ -117,13 +119,17 @@ class MainW (QMainWindow, Ui_MainWindow):
     def KalibretKameruClick(self):
         if self.cloudimage is not None:
             cldim = self.cloudimage
-            cldim.PrepareCamera()
+            cldim.PrepareCamera(**self.camera_calib_params)
+            #distortion=False, centers=True, separate_x_y=True
+            #cldim.PrepareCamera(method='optnew', distortion=args.optimizeDistortion, centers=args.notOptimizeCenter, separate_x_y=args.notOptimizeUnsymmetric)
             az, el, rot = cldim.camera.get_azimuth_elevation_rotation()            
             print(f'Kameras ass azimuts {az:.2f}°')
             print(f'Kameras ass augstums virs horizonta {el:.2f}°')
             print(f'Kameras pagrieziena leņķis {rot:.2f}°')
-            fx,fy = cldim.camera.get_focal_lengths_mm()
+            fx,fy,cx,cy = cldim.camera.get_focal_lengths_mm()
             print(f'Kameras fokusa attālumi (35mm ekvivalents) {fx:.1f} {fy:.1f}')
+            print(f'Kameras ass pozīcija {cx:.1f} {cy:.1f}')
+            self.ZimetAltAzClick()
         self.pelekot()
     def NolasitProjektu(self):
         
@@ -516,6 +522,18 @@ class MainW (QMainWindow, Ui_MainWindow):
             cs=ax.scatter(xy[:,0],xy[:,1], c=llh[2][valid], norm=csl[0].norm, cmap=csl[0].cmap)
             ax.figure.colorbar(csl[0])
             self.MplWidget1.canvas.draw()
+    def KamerasKalibracijasParametri(self):
+        s=f'{int(self.camera_calib_params["distortion"])},{int(self.camera_calib_params["centers"])},{int(self.camera_calib_params["separate_x_y"])}'
+        s=gui_string(text=s, caption="distortion,centers,separate_x_y")
+        if s is not None:
+            try:
+                s=[int(x) for x in s.split(',')]
+                self.camera_calib_params["distortion"]=s[0]==1
+                self.camera_calib_params["centers"]=s[1]!=0
+                self.camera_calib_params["separate_x_y"]=s[2]!=0
+                print('Kalibrēšanas parametri:',self.camera_calib_params)
+            except:
+                print('Nepareizi ievades parametri')
 if __name__ == '__main__':
 
     app = QApplication(sys.argv)
