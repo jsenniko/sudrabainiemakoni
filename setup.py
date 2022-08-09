@@ -12,7 +12,7 @@ setup(name='sudrabainiemakoni',
 		'matplotlib',
 		'scikit-image','pyproj',
 		'astropy','exifread','cameratransform==1.1','pymap3d','tilemapbase',
-		'opencv-python',
+		'opencv-python==4.5.5.64',
 		'pykrige'],
 	packages=['sudrabainiemakoni'],
 	zip_safe=False)
