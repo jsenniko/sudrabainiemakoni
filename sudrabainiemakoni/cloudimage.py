@@ -280,8 +280,8 @@ class WebMercatorImage:
 
     def PrepareHeightMap(self, point_longitudes, point_latitudes, point_heights):
         import pykrige
-        assert(len(point_longitudes==len(point_longitudes)))
-        assert(len(point_longitudes==len(point_heights)))
+        assert(len(point_longitudes)==len(point_longitudes))
+        assert(len(point_longitudes)==len(point_heights))
         if len(point_longitudes)>=3:
             x, y = WebMercatorImage.TRAN_4326_TO_3857.transform(point_latitudes, point_longitudes)
             OK = pykrige.ok.OrdinaryKriging(

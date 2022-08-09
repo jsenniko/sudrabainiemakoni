@@ -51,6 +51,8 @@ class MainW (QMainWindow, Ui_MainWindow):
         self.actionSaglab_t_augstumu_karti.triggered.connect(self.SaglabatAugstumuKarti)
         self.actionAugstumu_karti.triggered.connect(self.ZimetAugstumuKarti)
         self.actionKameras_kalibr_cijas_parametri.triggered.connect(self.KamerasKalibracijasParametri)
+        self.actionSaglab_t_projic_to_att_lu_JPG.triggered.connect(lambda: self.SaglabatProjicetoAttelu(jpg=True))
+        self.actionSaglab_t_projic_to_att_lu_TIFF.triggered.connect(lambda: self.SaglabatProjicetoAttelu(jpg=False))
         
         sys.stdout = Stream(newText=self.onUpdateText)
         sys.stderr = Stream(newText=self.onUpdateText)
@@ -59,11 +61,13 @@ class MainW (QMainWindow, Ui_MainWindow):
         
         self.cloudimage = None
         self.cloudimage2 = None
+        self.cpair = None
         self.webmerc = WebMercatorImage(self.cloudimage, 17,33,56,63,1.0)
         self.projHeight = 80 #km
         self.map_bounds=[17,33,56,63]
         self.map_alpha=0.85
         self.heightmap = None
+        self.projected_image = None
         self.camera_calib_params=dict(distortion=False, centers=True, separate_x_y=True)
 
         
@@ -88,6 +92,8 @@ class MainW (QMainWindow, Ui_MainWindow):
         self.actionAugstumu_karti.setEnabled(self.heightmap is not None)
         self.actionProjic_t_no_augstumu_kartes.setEnabled(self.heightmap is not None and self.cloudimage is not None)
         self.actionProjic_t_kop_no_augstumu_kartes.setEnabled(self.heightmap is not None and self.cloudimage is not None and self.cloudimage2 is not None)
+        self.actionSaglab_t_projic_to_att_lu_JPG.setEnabled(self.projected_image is not None)
+        self.actionSaglab_t_projic_to_att_lu_TIFF.setEnabled(self.projected_image is not None)
                                                            
     def onUpdateText(self, text):
         #https://stackoverflow.com/a/44433766
@@ -287,39 +293,45 @@ class MainW (QMainWindow, Ui_MainWindow):
                 self.ProjicetVidejotuAttelu(self.heightmap.heightmap/1000.0)
             
     def plotProjicet(self, pimages, ax, plotMap=True, plotPoints=True):
-            pp=[[self.cloudimage.location.lon.value, self.cloudimage.location.lat.value]]
-            if self.cloudimage2 is not None:
-                pp.append([self.cloudimage2.location.lon.value, self.cloudimage2.location.lat.value])
-            plots.PlotReferencedImages(self.webmerc, pimages,
-                   camera_points=pp if plotPoints else [],
-                   outputFileName=None,
-                   lonmin=self.map_bounds[0], lonmax=self.map_bounds[1], latmin=self.map_bounds[2], latmax=self.map_bounds[3],
-                   alpha=self.map_alpha,
-                   ax=ax,
-                   plotMap=plotMap)
+        import tilemapbase
+        def xy_latlon_str(x,y):
+            lon, lat = tilemapbase.to_lonlat(x, y)
+            return f'{lat:.3f}, {lon:.3f}'
+        ax.format_coord = xy_latlon_str       
+        pp=[[self.cloudimage.location.lon.value, self.cloudimage.location.lat.value]]
+        if self.cloudimage2 is not None:
+            pp.append([self.cloudimage2.location.lon.value, self.cloudimage2.location.lat.value])
+        plots.PlotReferencedImages(self.webmerc, pimages,
+               camera_points=pp if plotPoints else [],
+               outputFileName=None,
+               lonmin=self.map_bounds[0], lonmax=self.map_bounds[1], latmin=self.map_bounds[2], latmax=self.map_bounds[3],
+               alpha=self.map_alpha,
+               ax=ax,
+               plotMap=plotMap)
 
     def Projicet(self, projHeight, atseviski=True):
-            self.webmerc.cloudImage = self.cloudimage
+        self.webmerc.cloudImage = self.cloudimage
+        self.webmerc.prepare_reproject_from_camera(projHeight)
+        projected_image=self.webmerc.Fill_projectedImageMasked()
+        self.projected_image=(self.webmerc.__getstate__(), projected_image, projHeight)
+        pimages=[projected_image]
+        if self.cloudimage2 is not None:
+            self.webmerc.cloudImage = self.cloudimage2
             self.webmerc.prepare_reproject_from_camera(projHeight)
-            projected_image=self.webmerc.Fill_projectedImageMasked()
-            pimages=[projected_image]
-            if self.cloudimage2 is not None:
-                self.webmerc.cloudImage = self.cloudimage2
-                self.webmerc.prepare_reproject_from_camera(projHeight)
-                projected_image2=self.webmerc.Fill_projectedImageMasked()
-                pimages.append(projected_image2)
-                self.webmerc.cloudImage = self.cloudimage
-            
-                        
-            if atseviski and self.cloudimage2 is not None:
-                self.MplWidget1.canvas.initplot([121,122])
-                self.plotProjicet(pimages[0:1],self.MplWidget1.canvas.ax[0])
-                self.plotProjicet(pimages[1:2],self.MplWidget1.canvas.ax[1])
-            else:
-                self.MplWidget1.canvas.initplot()
-                self.plotProjicet(pimages,self.MplWidget1.canvas.ax)
-            self.MplWidget1.canvas.draw()
-            
+            projected_image2=self.webmerc.Fill_projectedImageMasked()
+            pimages.append(projected_image2)
+            self.webmerc.cloudImage = self.cloudimage
+        
+                    
+        if atseviski and self.cloudimage2 is not None:
+            self.MplWidget1.canvas.initplot([121,122])
+            self.plotProjicet(pimages[0:1],self.MplWidget1.canvas.ax[0])
+            self.plotProjicet(pimages[1:2],self.MplWidget1.canvas.ax[1])
+        else:
+            self.MplWidget1.canvas.initplot()
+            self.plotProjicet(pimages,self.MplWidget1.canvas.ax)
+        self.MplWidget1.canvas.draw()
+        self.pelekot()   
     def ProjicetVidejotuAttelu(self, projHeight):
         if self.cloudimage2 is not None:
             self.webmerc.cloudImage = self.cloudimage
@@ -478,13 +490,16 @@ class MainW (QMainWindow, Ui_MainWindow):
     def IzveidotAugstumuKarti(self):
         if self.cpair is not None:
             llh, rayminimaldistance, z_intrinsic_error, valid = self.cpair.GetHeightPoints(*self.cpair.correspondances)
-            self.webmerc.cloudimage = self.cloudimage
-            heightgrid = self.webmerc.PrepareHeightMap(llh[1][valid],llh[0][valid],llh[2][valid])
-            self.heightmap = HeightMap(self.webmerc)
-            self.heightmap.heightmap = heightgrid
-            self.heightmap.points = llh
-            self.heightmap.validpoints = valid
-            self.ZimetAugstumuKarti()
+            if any(valid):
+                self.webmerc.cloudimage = self.cloudimage
+                heightgrid = self.webmerc.PrepareHeightMap(llh[1][valid],llh[0][valid],llh[2][valid])
+                self.heightmap = HeightMap(self.webmerc)
+                self.heightmap.heightmap = heightgrid
+                self.heightmap.points = llh
+                self.heightmap.validpoints = valid
+                self.ZimetAugstumuKarti()
+            else:
+                print('Nevar izveidot augstumu karti - nav derīgu kontrolpunktu')
             self.pelekot()
     def SaglabatAugstumuKarti(self):
         if self.heightmap is not None:
@@ -534,6 +549,38 @@ class MainW (QMainWindow, Ui_MainWindow):
                 print('Kalibrēšanas parametri:',self.camera_calib_params)
             except:
                 print('Nepareizi ievades parametri')
+    def SaglabatProjicetoAttelu(self,jpg=True):
+        if self.projected_image is not None:
+            ext= '.jpg' if jpg else '.tif'
+            extjgw='.jgw' if jpg else '.tfw'
+            f=os.path.split(self.cloudimage.filename)
+            try:
+                z=float(self.projected_image[2])
+                zs=f'_{z:.1f}'
+            except:
+                zs=''
+            
+            
+            
+            projfile = f[0]+'/proj_'+os.path.splitext(f[1])[0]+zs+ext
+            
+            projfile, _ = QFileDialog.getSaveFileName(directory=projfile, 
+                                                   filter=f'(*{ext})',
+                                                   caption='Projicētais attēls')
+            if projfile!='':
+                jgwfile = os.path.splitext(projfile)[0]+extjgw
+                if jpg:
+                    img = self.projected_image[1][:,:,0:3]
+                else:
+                    img = self.projected_image[1]
+                wm=WebMercatorImage(None, 17,33,56,63,1.0)
+                wm.__setstate__(self.projected_image[0])
+                wm.SaveJgw(jgwfile)
+                import skimage.io
+                skimage.io.imsave(projfile, img)
+                print('Fails saglabāts:',projfile)                
+                
+
 if __name__ == '__main__':
 
     app = QApplication(sys.argv)

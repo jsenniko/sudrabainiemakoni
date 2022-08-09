@@ -66,6 +66,9 @@
     <addaction name="separator"/>
     <addaction name="actionIelas_t_augstumu_karti"/>
     <addaction name="actionSaglab_t_augstumu_karti"/>
+    <addaction name="separator"/>
+    <addaction name="actionSaglab_t_projic_to_att_lu_JPG"/>
+    <addaction name="actionSaglab_t_projic_to_att_lu_TIFF"/>
    </widget>
    <widget class="QMenu" name="menuDarb_bas">
     <property name="title">
@@ -263,6 +266,22 @@
   <action name="actionKameras_kalibr_cijas_parametri">
    <property name="text">
     <string>Kameras kalibrācijas parametri</string>
+   </property>
+  </action>
+  <action name="actionSaglab_t_projic_to_att_lu_JPG">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Saglabāt projicēto attēlu JPG</string>
+   </property>
+  </action>
+  <action name="actionSaglab_t_projic_to_att_lu_TIFF">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Saglabāt projicēto attēlu TIFF</string>
    </property>
   </action>
  </widget>
