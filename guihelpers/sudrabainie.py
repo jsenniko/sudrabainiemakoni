@@ -408,7 +408,7 @@ class MainW (QMainWindow, Ui_MainWindow):
                 if 'annot' in self.meerit:
                     self.meerit['annot'].remove()
                 self.meerit['ln'] = ax.plot([self.meerit['p1'][0], xx[0]], [self.meerit['p1'][1], xx[1]], color='black')
-                self.meerit['annot']=ax.annotate(f'{dist:.0f}m',xy=xx, fontsize=12, bbox=dict(facecolor='white', edgecolor='black'))
+                self.meerit['annot']=ax.annotate(f'{dist:.0f}m',xy=xx, xytext=(10,10), textcoords='offset points', fontsize=12, bbox=dict(facecolor='white', edgecolor='black'))
                 ax.figure.canvas.draw()
 
     def plotProjicet(self, pimages, ax, plotMap=True, plotPoints=True):
