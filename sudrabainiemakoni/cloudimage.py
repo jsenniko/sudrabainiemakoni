@@ -27,7 +27,13 @@ class StarReference:
     def __repr__(self):
         return f"{self.name} {self.skycoord.__repr__()}"
     def getSkyCoord(self):
-        c=astropy.coordinates.SkyCoord.from_name(self.name)
+        try:
+            # literal ra, dec in degrees
+            l=self.name.split(',')
+            ra, dec = float(l[0]), float(l[1])
+            c=astropy.coordinates.SkyCoord(ra, dec, unit='deg')
+        except:
+            c=astropy.coordinates.SkyCoord.from_name(self.name)
         print(self.name, c)
         self.skycoord = c
 

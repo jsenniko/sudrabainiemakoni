@@ -314,9 +314,12 @@ class MainW (QMainWindow, Ui_MainWindow):
     def StopCiparotZvaigznes(self):
         if self.isCiparotZvaigznes is not None:
             self.MplWidget1.canvas.mpl_disconnect(self.isCiparotZvaigznes)
-            filename_stars = os.path.splitext(self.cloudimage.filename)[
-                0]+'_zvaigznes.txt'
-            self.cloudimage.saveStarReferences(filename_stars)
+            filename_stars = os.path.splitext(self.cloudimage.filename)[0]+'_zvaigznes.txt'
+            filename_stars, _ = QFileDialog.getSaveFileName(directory=filename_stars,
+                                                       filter='(*.txt)',
+                                                       caption='Zvaigžņu fails')
+            if filename_stars != '':            
+                self.cloudimage.saveStarReferences(filename_stars)
             self.MplWidget1.canvas.fig.set_facecolor('white')
             self.ZimetAttelu()
         self.isCiparotZvaigznes = None
