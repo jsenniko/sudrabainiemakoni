@@ -13,7 +13,8 @@ setup(name='sudrabainiemakoni',
 		'scikit-image','pyproj',
 		'astropy','exifread','cameratransform==1.1','pymap3d','tilemapbase',
 		'opencv-python==4.5.5.64',
-		'pykrige'],
+		'pykrige',
+        'simplekml'],
 	packages=['sudrabainiemakoni'],
 	zip_safe=False)
 

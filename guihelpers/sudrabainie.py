@@ -758,6 +758,9 @@ class MainW (QMainWindow, Ui_MainWindow):
                 wm.SaveJgw(jgwfile)
                 import skimage.io
                 skimage.io.imsave(projfile, img)
+                if not jpg:
+                    from sudrabainiemakoni import savekml
+                    savekml.mapOverlay(wm, img, self.projHeight, projfile, saveimage=False, cloudimage=self.cloudimage)
                 print('Fails saglabāts:', projfile)
 
 
