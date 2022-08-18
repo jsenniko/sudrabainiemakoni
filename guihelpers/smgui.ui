@@ -69,6 +69,9 @@
     <addaction name="separator"/>
     <addaction name="actionSaglab_t_projic_to_att_lu_JPG"/>
     <addaction name="actionSaglab_t_projic_to_att_lu_TIFF"/>
+    <addaction name="separator"/>
+    <addaction name="actionIelas_t_kameru"/>
+    <addaction name="actionSaglab_t_kameru"/>
    </widget>
    <widget class="QMenu" name="menuDarb_bas">
     <property name="title">
@@ -101,6 +104,8 @@
     <addaction name="actionProjekcijas_apgabals"/>
     <addaction name="actionKartes_apgabals"/>
     <addaction name="actionKameras_kalibr_cijas_parametri"/>
+    <addaction name="separator"/>
+    <addaction name="actionUzst_d_t_datumu"/>
    </widget>
    <addaction name="menuFails"/>
    <addaction name="menuZ_m_t"/>
@@ -282,6 +287,30 @@
    </property>
    <property name="text">
     <string>Saglabāt projicēto attēlu TIFF</string>
+   </property>
+  </action>
+  <action name="actionIelas_t_kameru">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Ielasīt kameru</string>
+   </property>
+  </action>
+  <action name="actionSaglab_t_kameru">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Saglabāt kameru</string>
+   </property>
+  </action>
+  <action name="actionUzst_d_t_datumu">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Uzstādīt datumu</string>
    </property>
   </action>
  </widget>

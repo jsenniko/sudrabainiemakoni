@@ -74,6 +74,9 @@ class MainW (QMainWindow, Ui_MainWindow):
             lambda: self.SaglabatProjicetoAttelu(jpg=True))
         self.actionSaglab_t_projic_to_att_lu_TIFF.triggered.connect(
             lambda: self.SaglabatProjicetoAttelu(jpg=False))
+        self.actionIelas_t_kameru.triggered.connect(self.IelasitKameru)
+        self.actionSaglab_t_kameru.triggered.connect(self.SaglabatKameru)
+        self.actionUzst_d_t_datumu.triggered.connect(self.UzstaditDatumu)
 
         sys.stdout = Stream(newText=self.onUpdateText)
         sys.stderr = Stream(newText=self.onUpdateText)
@@ -126,7 +129,10 @@ class MainW (QMainWindow, Ui_MainWindow):
             self.projected_image is not None)
         self.actionSaglab_t_projic_to_att_lu_TIFF.setEnabled(
             self.projected_image is not None)
-
+        self.actionIelas_t_kameru.setEnabled(self.cloudimage is not None)
+        self.actionSaglab_t_kameru.setEnabled(self.cloudimage is not None and hasattr(self.cloudimage, 'camera'))
+        self.actionUzst_d_t_datumu.setEnabled(self.cloudimage is not None)
+        
     def onUpdateText(self, text):
         # https://stackoverflow.com/a/44433766
         cursor = self.console.textCursor()
@@ -158,7 +164,20 @@ class MainW (QMainWindow, Ui_MainWindow):
             case_id, filename_jpg, filename_stars, lat, lon)
         self.ZimetAttelu()
         self.pelekot()
-
+    def UzstaditDatumu(self):
+        try:
+            d=self.cloudimage.date.to_datetime(timezone=CloudImage.timezone)
+            s=d.strftime('%Y-%m-%dT%H:%M:%S')
+        except:
+            s=''
+        s=gui_string(text=s, caption='Ievadi datumu, YYYY-MM-DDTHH:MM:SS')
+        try:
+            import datetime
+            d=datetime.datetime.strptime(s, '%Y-%m-%dT%H:%M:%S')
+            self.cloudimage.setDate(d)
+        except:
+            print('Nepareizs datums!')
+        
     def KalibretKameruClick(self):
         if self.cloudimage is not None:
             cldim = self.cloudimage
@@ -211,7 +230,23 @@ class MainW (QMainWindow, Ui_MainWindow):
         if projfile != '':
             self.cloudimage.save(projfile)
             print(f'Saved project file {projfile}')
-
+    def IelasitKameru(self):
+        camfile = os.path.splitext(self.cloudimage.filename)[0]+'_enu.json'
+        camfile, _ = QFileDialog.getOpenFileName(
+            directory=camfile,
+            filter='(*.json)',
+            caption='Kameras fails')
+        if camfile !='':
+            self.cloudimage.LoadCamera(camfile)
+    def SaglabatKameru(self):
+        camfile = os.path.splitext(self.cloudimage.filename)[0]+'_enu.json'
+        camfile, _ = QFileDialog.getSaveFileName(
+            directory=camfile,
+            filter='(*.json)',
+            caption='Kameras fails')
+        if camfile !='':
+            self.cloudimage.SaveCamera(camfile)
+        
     def ZimetAltAzClick(self):
         self.disconnect_meerit()
         if self.cloudimage is not None:
