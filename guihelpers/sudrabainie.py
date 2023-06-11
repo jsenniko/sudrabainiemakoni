@@ -392,6 +392,9 @@ class MainW (QMainWindow, Ui_MainWindow):
         ll1 = tilemapbase.to_lonlat(*p1_webmerc)
         ll2 = tilemapbase.to_lonlat(*p2_webmerc)
         import pymap3d.vincenty
+        # reverse lonlat to latlon form pymap3d.vincenty
+        ll1=ll1[1],ll1[0]
+        ll2=ll2[1],ll2[0]
         dist, az = pymap3d.vincenty.vdist(*ll1, *ll2)
         return dist
 
