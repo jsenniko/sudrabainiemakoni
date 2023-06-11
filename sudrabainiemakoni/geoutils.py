@@ -96,7 +96,7 @@ def los_to_earth(x,y,z, u,v,w, surface_height, to_earth = True):
         z + d * w,
     ])
 
-def get_is_sunlit(x,y,z, astropy_date):
+def get_is_sunlit(x,y,z, astropy_date, atmosphere_width_km=0.0):
     """
     x,y,z -  ECEF
     """
@@ -110,12 +110,13 @@ def get_is_sunlit(x,y,z, astropy_date):
     vector_to_sun = sun_xyz-np.stack([x,y,z]).T
     vector_to_sun = vector_to_sun/np.linalg.norm(vector_to_sun, axis=-1)[...,np.newaxis]
     xxx=los_to_earth(x.flatten(),y.flatten(),z.flatten(),
-             vector_to_sun[...,0].flatten(),vector_to_sun[...,1].flatten(),vector_to_sun[...,2].flatten(), 0,
+             vector_to_sun[...,0].flatten(),vector_to_sun[...,1].flatten(),vector_to_sun[...,2].flatten(), 
+             atmosphere_width_km*1000.0,
                              to_earth=True)
     is_sunlit=np.isnan(xxx[0])
     is_sunlit=is_sunlit.reshape(x.shape)
     return is_sunlit
-def get_is_sunlit_latlon(lat,lon,height, astropy_date):
+def get_is_sunlit_latlon(lat,lon,height, astropy_date,atmosphere_width_km=0.0):
     import pymap3d
     x,y,z=pymap3d.geodetic2ecef(lat,lon, height)
-    return get_is_sunlit(x,y,z,astropy_date)
+    return get_is_sunlit(x,y,z,astropy_date,atmosphere_width_km=atmosphere_width_km)
