@@ -354,6 +354,7 @@ class Camera:
             if cam is not None:
                 keys = cam.parameters.parameters.keys()
                 state[ckey] = {key: getattr(cam, key) for key in keys}
+                state[ckey]['projectiontype'] = 'equirectangular' if type(cam.projection) == ct.EquirectangularProjection else 'rectilinear'
         return state
     def __setstate__(self, state):
         if 'camera_enu' in state:
@@ -364,7 +365,14 @@ class Camera:
             self.camera_ecef = None
             for ckey in ['ENU','ECEF']:
                 if ckey in state:
-                    cam = ct.Camera(ct.RectilinearProjection(),
+                    if 'projectiontype' in state[ckey]:
+                        if state[ckey]['projectiontype'] == 'equirectangular':
+                            projection = ct.EquirectangularProjection
+                        else:
+                            projection = ct.RectilinearProjection
+                    else:
+                        projection = ct.RectilinearProjection
+                    cam = ct.Camera(projection(),  
                           ct.SpatialOrientation(),
                           ct.BrownLensDistortion())
                     for key in state[ckey]:
@@ -420,7 +428,7 @@ class Camera:
                 ct.FitParameter("k1", lower=0, upper=1, value=0),
                 ], iterations=2e3)
 
-    def Fit(self, method='optnew', distortion=False, centers=True, separate_x_y=True):
+    def Fit(self, method='optnew', distortion=False, centers=True, separate_x_y=True, projectiontype='rectilinear'):
         #exif = utils.getExifTags(self.cloudImage.filename)
         #focallength = exif.get('FocalLength', 24)
         sensor_size = (36, 24)
@@ -438,8 +446,12 @@ class Camera:
 
         cx_bounds = [0, self.cloudImage.imagearray.shape[1]]
         cy_bounds = [0, self.cloudImage.imagearray.shape[0]]
+        if projectiontype=='equirectangular':
+            projection=ct.EquirectangularProjection
+        else:
+            projection=ct.RectilinearProjection
 
-        self.camera_enu = ct.Camera(ct.RectilinearProjection(focallength_mm=focallength,
+        self.camera_enu = ct.Camera(projection(focallength_mm=focallength,   
                                          sensor=sensor_size,
                                          image=image_size),
                   ct.SpatialOrientation(elevation_m=0),
@@ -501,8 +513,8 @@ class Camera:
         return camera_ecef
 
     def save(self, filename):
-        self.camera_enu.save(os.path.splitext(filename)[0]+'_enu.json')
-        self.camera_ecef.save(os.path.splitext(filename)[0]+'_ecef.json')
+        optimize_camera.save_camera(self.camera_enu,os.path.splitext(filename)[0]+'_enu.json')
+        optimize_camera.save_camera(self.camera_ecef,os.path.splitext(filename)[0]+'_ecef.json')
     def load(self, filename):
         if os.path.exists(os.path.splitext(filename)[0]+'_enu.json'):
             self.camera_enu = optimize_camera.load_camera(os.path.splitext(filename)[0]+'_enu.json')
@@ -554,8 +566,12 @@ class Camera:
         camera_ecef.elevation_m=z
         return camera_ecef
     @classmethod
-    def make_cameras(cls, lat_deg, lon_deg, height_m, width_px, height_px, focallength_35mm, azimuth, elevation, rotation):
-        camera_enu = ct.Camera(ct.RectilinearProjection(focallength_mm=focallength_35mm,
+    def make_cameras(cls, lat_deg, lon_deg, height_m, width_px, height_px, focallength_35mm, azimuth, elevation, rotation, projectiontype='rectilinear'):
+        if projectiontype=='equirectangular':
+            projection=ct.EquirectangularProjection
+        else:
+            projection=ct.RectilinearProjection
+        camera_enu = ct.Camera(projection(focallength_mm=focallength_35mm,  
                                              sensor=(36,24),
                                              image=(width_px, height_px)),
                                ct.SpatialOrientation(

@@ -64,16 +64,38 @@ def reload_camera(camera):
     import cameratransform as ct
     keys = camera.parameters.parameters.keys()
     variables = {key: getattr(camera, key) for key in keys}
-    camnew = ct.Camera(ct.RectilinearProjection(), ct.SpatialOrientation(),  ct.BrownLensDistortion())
+    camnew = ct.Camera(type(camera.projection)(), ct.SpatialOrientation(),  ct.BrownLensDistortion())
     for key in variables:
         setattr(camnew, key, variables[key])
     return camnew
 # fix loading bug of cameratransform v1.1
 def load_camera(filename):
     import cameratransform as ct
-    camera = ct.Camera(ct.RectilinearProjection(), ct.SpatialOrientation(),  ct.BrownLensDistortion())
+    import json
+    with open(filename, "r") as fp:
+        variables = json.loads(fp.read())
+    if 'projectiontype' in variables:
+        if variables['projection'] == 'equirectangular':
+            projection = ct.EquirectangularProjection
+        else:
+            projection = ct.RectilinearProjection
+    else:
+        projection = ct.RectilinearProjection
+
+    camera = ct.Camera(projection(), ct.SpatialOrientation(),  ct.BrownLensDistortion())    
     camera.load(filename)
     return camera
+def save_camera(camera, filename):
+    import cameratransform as ct
+    import json
+    keys = camera.parameters.parameters.keys()
+    export_dict = {key: getattr(camera, key) for key in keys}
+    if type(camera.projection) == ct.EquirectangularProjection:
+        export_dict['projectiontype'] = 'equirectangular'
+    else:
+        export_dict['projectiontype'] = 'rectilinear'
+    with open(filename, "w") as fp:
+        fp.write(json.dumps(export_dict, indent=4))
 
 def OptimizeCamera(camera, enu_unit_coords, pxls, distortion=True, centers=True,  separate_x_y=True,
                    f_bounds=[1000,10000], cx_bounds=[0, 6000], cy_bounds=[0,4000]):
