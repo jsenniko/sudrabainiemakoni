@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.optimize
 from scipy.spatial.transform import Rotation
+import cameraprojections
 
 def Rotation_fromOrientation(obj):
     return Rotation.from_euler('ZXZ', [ -obj.roll_deg,-obj.tilt_deg, obj.heading_deg ], degrees=True)
@@ -75,10 +76,7 @@ def load_camera(filename):
     with open(filename, "r") as fp:
         variables = json.loads(fp.read())
     if 'projectiontype' in variables:
-        if variables['projection'] == 'equirectangular':
-            projection = ct.EquirectangularProjection
-        else:
-            projection = ct.RectilinearProjection
+        projection = cameraprojections.projection_by_name(variables['projection'])
     else:
         projection = ct.RectilinearProjection
 
@@ -90,10 +88,7 @@ def save_camera(camera, filename):
     import json
     keys = camera.parameters.parameters.keys()
     export_dict = {key: getattr(camera, key) for key in keys}
-    if type(camera.projection) == ct.EquirectangularProjection:
-        export_dict['projectiontype'] = 'equirectangular'
-    else:
-        export_dict['projectiontype'] = 'rectilinear'
+    export_dict['projectiontype']= cameraprojections.name_by_projection(camera.projection)
     with open(filename, "w") as fp:
         fp.write(json.dumps(export_dict, indent=4))
 

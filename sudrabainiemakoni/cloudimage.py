@@ -17,6 +17,7 @@ from sudrabainiemakoni import utils
 from sudrabainiemakoni import geoutils
 from sudrabainiemakoni import optimize_camera
 from sudrabainiemakoni import calculations
+import cameraprojections
 class StarReference:
     def __init__(self, name, pixelcoords):
         self.name = name
@@ -354,7 +355,7 @@ class Camera:
             if cam is not None:
                 keys = cam.parameters.parameters.keys()
                 state[ckey] = {key: getattr(cam, key) for key in keys}
-                state[ckey]['projectiontype'] = 'equirectangular' if type(cam.projection) == ct.EquirectangularProjection else 'rectilinear'
+                state[ckey]['projectiontype'] =  cameraprojections.name_by_projection(cam.projection)
         return state
     def __setstate__(self, state):
         if 'camera_enu' in state:
@@ -366,10 +367,7 @@ class Camera:
             for ckey in ['ENU','ECEF']:
                 if ckey in state:
                     if 'projectiontype' in state[ckey]:
-                        if state[ckey]['projectiontype'] == 'equirectangular':
-                            projection = ct.EquirectangularProjection
-                        else:
-                            projection = ct.RectilinearProjection
+                        projection = cameraprojections.projection_by_name(state[ckey]['projectiontype'])
                     else:
                         projection = ct.RectilinearProjection
                     cam = ct.Camera(projection(),  
@@ -446,10 +444,7 @@ class Camera:
 
         cx_bounds = [0, self.cloudImage.imagearray.shape[1]]
         cy_bounds = [0, self.cloudImage.imagearray.shape[0]]
-        if projectiontype=='equirectangular':
-            projection=ct.EquirectangularProjection
-        else:
-            projection=ct.RectilinearProjection
+        projection=cameraprojections.projection_by_name(projectiontype)
 
         self.camera_enu = ct.Camera(projection(focallength_mm=focallength,   
                                          sensor=sensor_size,
@@ -567,10 +562,7 @@ class Camera:
         return camera_ecef
     @classmethod
     def make_cameras(cls, lat_deg, lon_deg, height_m, width_px, height_px, focallength_35mm, azimuth, elevation, rotation, projectiontype='rectilinear'):
-        if projectiontype=='equirectangular':
-            projection=ct.EquirectangularProjection
-        else:
-            projection=ct.RectilinearProjection
+        projection=cameraprojections.projection_by_name(projectiontype)
         camera_enu = ct.Camera(projection(focallength_mm=focallength_35mm,  
                                              sensor=(36,24),
                                              image=(width_px, height_px)),
