@@ -91,7 +91,7 @@ class MainW (QMainWindow, Ui_MainWindow):
         self.heightmap = None
         self.projected_image = None
         self.camera_calib_params = dict(
-            distortion=False, centers=True, separate_x_y=True)
+            distortion=False, centers=True, separate_x_y=True, projectiontype='rectilinear')
 
         self.isCiparotZvaigznes = None
         self.isCiparotKontrolpunkti = None
@@ -760,17 +760,19 @@ class MainW (QMainWindow, Ui_MainWindow):
             self.MplWidget1.canvas.draw()
 
     def KamerasKalibracijasParametri(self):
-        s = f'{int(self.camera_calib_params["distortion"])},{int(self.camera_calib_params["centers"])},{int(self.camera_calib_params["separate_x_y"])}'
-        s = gui_string(text=s, caption="distortion,centers,separate_x_y")
+        s = f'{int(self.camera_calib_params["distortion"])},{int(self.camera_calib_params["centers"])},{int(self.camera_calib_params["separate_x_y"])},{self.camera_calib_params["projectiontype"]}'
+        s = gui_string(text=s, caption="distortion,centers,separate_x_y,projectiontype")
         if s is not None:
             try:
-                s = [int(x) for x in s.split(',')]
-                self.camera_calib_params["distortion"] = s[0] == 1
-                self.camera_calib_params["centers"] = s[1] != 0
-                self.camera_calib_params["separate_x_y"] = s[2] != 0
+                #s = [int(x) for x in s.split(',')]
+                s=s.split(',')
+                self.camera_calib_params["distortion"] = int(s[0]) == 1
+                self.camera_calib_params["centers"] = int(s[1]) != 0
+                self.camera_calib_params["separate_x_y"] = int(s[2]) != 0
+                self.camera_calib_params["projectiontype"] = s[3]
                 print('Kalibrēšanas parametri:', self.camera_calib_params)
-            except:
-                print('Nepareizi ievades parametri')
+            except Exception as e:
+                print('Nepareizi ievades parametri',e)
 
     def SaglabatProjicetoAttelu(self, jpg=True):
         if self.projected_image is not None:

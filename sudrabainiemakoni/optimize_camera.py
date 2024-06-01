@@ -76,7 +76,7 @@ def load_camera(filename):
     with open(filename, "r") as fp:
         variables = json.loads(fp.read())
     if 'projectiontype' in variables:
-        projection = cameraprojections.projection_by_name(variables['projection'])
+        projection = cameraprojections.projection_by_name(variables['projectiontype'])
     else:
         projection = ct.RectilinearProjection
 

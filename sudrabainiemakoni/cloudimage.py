@@ -445,6 +445,7 @@ class Camera:
         cx_bounds = [0, self.cloudImage.imagearray.shape[1]]
         cy_bounds = [0, self.cloudImage.imagearray.shape[0]]
         projection=cameraprojections.projection_by_name(projectiontype)
+        print('Projection type:', projection)
 
         self.camera_enu = ct.Camera(projection(focallength_mm=focallength,   
                                          sensor=sensor_size,
@@ -511,10 +512,20 @@ class Camera:
         optimize_camera.save_camera(self.camera_enu,os.path.splitext(filename)[0]+'_enu.json')
         optimize_camera.save_camera(self.camera_ecef,os.path.splitext(filename)[0]+'_ecef.json')
     def load(self, filename):
-        if os.path.exists(os.path.splitext(filename)[0]+'_enu.json'):
-            self.camera_enu = optimize_camera.load_camera(os.path.splitext(filename)[0]+'_enu.json')
-        if os.path.exists(os.path.splitext(filename)[0]+'_ecef.json'):
-            self.camera_ecef = optimize_camera.load_camera(os.path.splitext(filename)[0]+'_ecef.json')
+        fn = os.path.splitext(filename)[0]
+        if os.path.exists(fn+'_enu.json'):
+            fn=fn+'_enu.json'
+        else:
+            fn = fn.rsplit('_',1)[0]+'_enu.json'
+        if os.path.exists(fn):
+            self.camera_enu = optimize_camera.load_camera(fn)
+        fn = os.path.splitext(filename)[0]
+        if os.path.exists(fn+'_ecef.json'):
+            fn=fn+'_ecef.json'
+        else:
+            fn = fn.rsplit('_',1)[0]+'_ecef.json'
+        if os.path.exists(fn):
+            self.camera_ecef = optimize_camera.load_camera(fn)
 
     def imageFromECEF(self, xyz):
         return self.camera_ecef.imageFromSpace(xyz)
