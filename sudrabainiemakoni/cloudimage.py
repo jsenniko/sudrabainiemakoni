@@ -609,6 +609,11 @@ class CloudImage:
         import pickle
         with open(filename, 'rb') as f:
             d = pickle.load(f)
+        if not os.path.exists(d.filename):
+            # try relative path
+            test = os.path.join(os.path.dirname(filename), os.path.basename(d.filename))
+            if os.path.exists(test):
+                d.filename = test
 
         #d.LoadCamera(filename)
         return d
