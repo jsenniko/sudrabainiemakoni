@@ -5,13 +5,15 @@ from qthelper import gui_fname, gui_string
 def check_latlon_file(filename_jpg):
     # garuma, platuma fails
     latlonfile=os.path.splitext(filename_jpg)[0]+'_latlon.txt'
-    lat, lon = None, None
+    lat, lon, height = None, None, 0.0
     if os.path.exists(latlonfile):
         try:
             with open(latlonfile,'r') as f:
                 s=f.readline()
                 s=s.split(',')   
                 lat,lon=float(s[0]), float(s[1])
+                if len(s)>2:
+                    height=float(s[2])
                 print(f'LatLon file:{latlonfile}')
         except:
             pass
@@ -29,7 +31,7 @@ def check_latlon_file(filename_jpg):
             with open(latlonfile,'w') as f:
                 s=f'{lat},{lon}'
                 f.write(s)
-    return lat, lon
+    return lat, lon, height
 def check_stars_file(filename_jpg):
     # zvaigžņu fails
     filename_stars=os.path.splitext(filename_jpg)[0]+'_zvaigznes.txt'

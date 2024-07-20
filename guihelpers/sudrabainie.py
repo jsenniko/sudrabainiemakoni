@@ -77,6 +77,7 @@ class MainW (QMainWindow, Ui_MainWindow):
         self.actionIelas_t_kameru.triggered.connect(self.IelasitKameru)
         self.actionSaglab_t_kameru.triggered.connect(self.SaglabatKameru)
         self.actionUzst_d_t_datumu.triggered.connect(self.UzstaditDatumu)
+        self.actionUzst_d_t_platumu_garumu_augstumu.triggered.connect(self.UzstaditKoordinates)
 
         sys.stdout = Stream(newText=self.onUpdateText)
         sys.stderr = Stream(newText=self.onUpdateText)
@@ -159,9 +160,9 @@ class MainW (QMainWindow, Ui_MainWindow):
         self.console.clear()
         case_id = os.path.splitext(os.path.split(filename_jpg)[1])[0]
         filename_stars = smhelper.check_stars_file(filename_jpg)
-        lat, lon = smhelper.check_latlon_file(filename_jpg)
+        lat, lon, height = smhelper.check_latlon_file(filename_jpg)
         self.cloudimage = CloudImage.from_files(
-            case_id, filename_jpg, filename_stars, lat, lon)
+            case_id, filename_jpg, filename_stars, lat, lon, height=height)
         self.ZimetAttelu()
         self.pelekot()
     def UzstaditDatumu(self):
@@ -177,7 +178,22 @@ class MainW (QMainWindow, Ui_MainWindow):
             self.cloudimage.setDate(d)
         except:
             print('Nepareizs datums!')
-        
+    def UzstaditKoordinates(self):
+        try:
+            lat,lon,height=self.cloudimage.getLocation()
+            s=f'{lat:.5f},{lon:.5f},{height:.0f}'
+            
+        except:
+            s=''
+        try:
+            s=gui_string(text=s, caption='Ievadi koordinātes (lat,lon,z)')
+            s=s.split(',')   
+            lat,lon,height=float(s[0]), float(s[1]),0.0
+            if len(s)>2:
+                height=float(s[2])
+            self.cloudimage.setLocation(lon=lon, lat=lat, height=height)
+        except:
+            print('Nepareiza ievade!')
     def KalibretKameruClick(self):
         if self.cloudimage is not None:
             cldim = self.cloudimage

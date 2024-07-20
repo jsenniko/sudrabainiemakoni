@@ -106,6 +106,7 @@
     <addaction name="actionKameras_kalibr_cijas_parametri"/>
     <addaction name="separator"/>
     <addaction name="actionUzst_d_t_datumu"/>
+    <addaction name="actionUzst_d_t_platumu_garumu_augstumu"/>
    </widget>
    <addaction name="menuFails"/>
    <addaction name="menuZ_m_t"/>
@@ -311,6 +312,11 @@
    </property>
    <property name="text">
     <string>Uzstādīt datumu</string>
+   </property>
+  </action>
+  <action name="actionUzst_d_t_platumu_garumu_augstumu">
+   <property name="text">
+    <string>Uzstādīt platumu, garumu, augstumu</string>
    </property>
   </action>
  </widget>

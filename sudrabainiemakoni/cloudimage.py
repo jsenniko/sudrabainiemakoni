@@ -433,7 +433,7 @@ class Camera:
         focallength = utils.getExifEquivalentFocalLength35mm(self.cloudImage.filename)
 
         # if focal length given in exif specify range f/2 - 2*f
-        f_bounds = np.array([12, 600]) if focallength is None else np.array([focallength/2.0, focallength*2.0])
+        f_bounds = np.array([12, 600]) if (focallength is None or focallength<=0.0) else np.array([focallength/2.0, focallength*2.0])
         f_bounds = f_bounds/sensor_size[0]*self.cloudImage.imagearray.shape[1]
 
 
@@ -657,11 +657,11 @@ class CloudImage:
         c.setStarReferences(stars, pixels)
         return c
     @classmethod
-    def from_files(cls, case_id, filename_jpg, filename_stars, lat, lon):
+    def from_files(cls, case_id, filename_jpg, filename_stars, lat, lon, height=0):
         cldim = CloudImage(case_id, filename_jpg)
         cldim.setDateFromExif()
         if lat is not None and lon is not None:
-            cldim.setLocation(lat=lat, lon=lon)
+            cldim.setLocation(lat=lat, lon=lon, height=height)
         else:
             cldim.setLocationExif()
         print('UTC:', cldim.date)
@@ -708,6 +708,8 @@ class CloudImage:
         # astropy EarthLocation objekts, kuru inicializējam no novērotāja koordinātēm
         self.location = astropy.coordinates.EarthLocation(lon = lon, lat = lat, height = height)
         self.prepareCoordinateSystems()
+    def getLocation(self):        
+        return self.location.lat.value, self.location.lon.value, self.location.height.value
     def setLocationExif(self):
         lat, lon = utils.getExifLatLon(self.filename)
         print('EXIF latlon', lat, lon)
