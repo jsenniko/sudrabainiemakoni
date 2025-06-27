@@ -8,8 +8,9 @@ import tilemapbase
 from sudrabainiemakoni.cloudimage import CloudImage, StarReference, WebMercatorImage, CloudImagePair, HeightMap
 from sudrabainiemakoni import plots, utils
 from smgui import Ui_MainWindow
-from qthelper import gui_fname, gui_string
+from qthelper import gui_fname, gui_save_fname, gui_string
 import smhelper
+from exceptions import handle_exceptions
 
 
 class Stream(QtCore.QObject):
@@ -34,51 +35,52 @@ class MainW (QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.showMaximized()
 
-        self.actionIelas_t_att_lu.triggered.connect(self.IelasitAtteluClick)
-        self.actionKalibr_t_kameru.triggered.connect(self.KalibretKameruClick)
-        self.actionSaglab_t_projektu.triggered.connect(self.SaglabatProjektu)
-        self.actionIelas_t_projektu.triggered.connect(self.NolasitProjektu)
+        self.actionIelas_t_att_lu.triggered.connect(self.LoadImageClick)
+        self.actionMainit_att_lu.triggered.connect(self.ChangeImageClick)
+        self.actionKalibr_t_kameru.triggered.connect(self.CalibrateCameraClick)
+        self.actionSaglab_t_projektu.triggered.connect(self.SaveProject)
+        self.actionIelas_t_projektu.triggered.connect(self.LoadProject)
         self.actionIelas_t_otro_projektu.triggered.connect(
-            self.NolasitProjektu2)
+            self.LoadProject2)
         self.actionHorizont_lo_koordin_tu_re_is.triggered.connect(
-            self.ZimetAltAzClick)
-        self.actionAtt_lu.triggered.connect(self.ZimetAtteluClick)
+            self.DrawAltAzClick)
+        self.actionAtt_lu.triggered.connect(self.DrawImageClick)
         self.actionCiparot_zvaigznes.triggered.connect(
-            self.CiparotZvaigznesClick)
+            self.DigitizeStarsClick)
         self.actionProjic_t.triggered.connect(
-            lambda: self.ProjicetClick(tips=0))
+            lambda: self.ProjectClick(tips=0))
         self.actionProjic_t_kop.triggered.connect(
-            lambda: self.ProjicetClick(tips=2))
+            lambda: self.ProjectClick(tips=2))
         self.actionProjic_t_no_augstumu_kartes.triggered.connect(
-            lambda: self.ProjicetNoKartesClick(tips=0))
+            lambda: self.ProjectFromMapClick(tips=0))
         self.actionProjic_t_kop_no_augstumu_kartes.triggered.connect(
-            lambda: self.ProjicetNoKartesClick(tips=2))
-        self.actionProjekcijas_apgabals.triggered.connect(self.MainitApgabalu)
-        self.actionKartes_apgabals.triggered.connect(self.KartesApgabals)
+            lambda: self.ProjectFromMapClick(tips=2))
+        self.actionProjekcijas_apgabals.triggered.connect(self.ChangeRegion)
+        self.actionKartes_apgabals.triggered.connect(self.MapRegion)
         self.actionKontrolpunkti.triggered.connect(
-            self.CiparotKontrolpunktusClick)
+            self.DigitizeControlPointsClick)
         self.actionIelas_t_kontrolpunktus.triggered.connect(
-            self.IelasitKontrolpunktus)
+            self.LoadControlPoints)
         self.actionKontrolpunktu_augstumus.triggered.connect(
-            self.ZimetKontrolpunktuAugstumus)
+            self.DrawControlPointHeights)
         self.actionIzveidot_augstumu_karti.triggered.connect(
-            self.IzveidotAugstumuKarti)
+            self.CreateHeightMap)
         self.actionIelas_t_augstumu_karti.triggered.connect(
-            self.IelasitAugstumuKarti)
+            self.LoadHeightMap)
         self.actionSaglab_t_augstumu_karti.triggered.connect(
-            self.SaglabatAugstumuKarti)
-        self.actionAugstumu_karti.triggered.connect(self.ZimetAugstumuKarti)
+            self.SaveHeightMap)
+        self.actionAugstumu_karti.triggered.connect(self.DrawHeightMap)
         self.actionKameras_kalibr_cijas_parametri.triggered.connect(
-            self.KamerasKalibracijasParametri)
+            self.CameraCalibrationParameters)
         self.actionSaglab_t_projic_to_att_lu_JPG.triggered.connect(
-            lambda: self.SaglabatProjicetoAttelu(jpg=True))
+            lambda: self.SaveProjectedImage(jpg=True))
         self.actionSaglab_t_projic_to_att_lu_TIFF.triggered.connect(
-            lambda: self.SaglabatProjicetoAttelu(jpg=False))
-        self.actionIelas_t_kameru.triggered.connect(self.IelasitKameru)
-        self.actionSaglab_t_kameru.triggered.connect(self.SaglabatKameru)
-        self.actionUzst_d_t_datumu.triggered.connect(self.UzstaditDatumu)
-        self.actionUzst_d_t_platumu_garumu_augstumu.triggered.connect(self.UzstaditKoordinates)
-
+            lambda: self.SaveProjectedImage(jpg=False))
+        self.actionIelas_t_kameru.triggered.connect(self.LoadCamera)
+        self.actionSaglab_t_kameru.triggered.connect(self.SaveCamera)
+        self.actionUzst_d_t_datumu.triggered.connect(self.SetDate)
+        self.actionUzst_d_t_platumu_garumu_augstumu.triggered.connect(self.SetCoordinates)
+        self.actionEpil_niju_augstums.triggered.connect(self.SetEpilineHeight)
         sys.stdout = Stream(newText=self.onUpdateText)
         sys.stderr = Stream(newText=self.onUpdateText)
 
@@ -92,13 +94,16 @@ class MainW (QMainWindow, Ui_MainWindow):
         self.heightmap = None
         self.projected_image = None
         self.camera_calib_params = dict(
-            distortion=False, centers=True, separate_x_y=True, projectiontype='rectilinear')
+            distortion=0, centers=True, separate_x_y=True, projectiontype='rectilinear')
 
-        self.isCiparotZvaigznes = None
-        self.isCiparotKontrolpunkti = None
-        self.meerit_events = None
+        self.isDigitizeStars = None
+        self.isDigitizeControlPoints = None
+        self.measure_events = None
+        self.z1, self.z2 = 75, 90
 
-    def pelekot(self):
+
+    def update_ui_state(self):
+        self.actionMainit_att_lu.setEnabled(self.cloudimage is not None)
         self.actionKalibr_t_kameru.setEnabled(self.cloudimage is not None)
         self.actionSaglab_t_projektu.setEnabled(self.cloudimage is not None)
         self.actionIelas_t_otro_projektu.setEnabled(
@@ -149,13 +154,14 @@ class MainW (QMainWindow, Ui_MainWindow):
         sys.stderr = sys.__stderr__
         super().closeEvent(event)
 
-    def IelasitAtteluClick(self):
+    def LoadImageClick(self):
         filename_jpg = gui_fname(
             caption="Sudrabaino mākoņu attēls", filter='*.jpg')
         if filename_jpg != '':
-            self.IelasitAttelu(filename_jpg)
+            self.LoadImage(filename_jpg)
 
-    def IelasitAttelu(self, filename_jpg):
+    @handle_exceptions(method_name="Loading image")
+    def LoadImage(self, filename_jpg):
         self.cloudimage2 = None
         self.console.clear()
         case_id = os.path.splitext(os.path.split(filename_jpg)[1])[0]
@@ -163,43 +169,51 @@ class MainW (QMainWindow, Ui_MainWindow):
         lat, lon, height = smhelper.check_latlon_file(filename_jpg)
         self.cloudimage = CloudImage.from_files(
             case_id, filename_jpg, filename_stars, lat, lon, height=height)
-        self.ZimetAttelu()
-        self.pelekot()
-    def UzstaditDatumu(self):
-        try:
-            d=self.cloudimage.date.to_datetime(timezone=CloudImage.timezone)
-            s=d.strftime('%Y-%m-%dT%H:%M:%S')
-        except:
-            s=''
-        s=gui_string(text=s, caption='Ievadi datumu, YYYY-MM-DDTHH:MM:SS')
-        try:
-            import datetime
-            d=datetime.datetime.strptime(s, '%Y-%m-%dT%H:%M:%S')
-            self.cloudimage.setDate(d)
-        except:
-            print('Nepareizs datums!')
-    def UzstaditKoordinates(self):
-        try:
-            lat,lon,height=self.cloudimage.getLocation()
-            s=f'{lat:.5f},{lon:.5f},{height:.0f}'
+        self.DrawImage()
+        self.update_ui_state()
+
+    def ChangeImageClick(self):
+        filename_jpg = gui_fname(
+            caption="Sudrabaino mākoņu attēls", filter='*.jpg')
+        if filename_jpg != '':
+            self.ChangeImage(filename_jpg)
+    @handle_exceptions(method_name="Changing image")
+    def ChangeImage(self, filename_jpg):
+        if self.cloudimage is not None:
+            self.cloudimage.filename = filename_jpg
+            self.cloudimage.LoadImage(reload=True)
+        self.update_ui_state()
+
             
-        except:
-            s=''
-        try:
-            s=gui_string(text=s, caption='Ievadi koordinātes (lat,lon,z)')
-            s=s.split(',')   
-            lat,lon,height=float(s[0]), float(s[1]),0.0
-            if len(s)>2:
-                height=float(s[2])
-            self.cloudimage.setLocation(lon=lon, lat=lat, height=height)
-        except:
-            print('Nepareiza ievade!')
-    def KalibretKameruClick(self):
+    @handle_exceptions(method_name="Setting date")
+    def SetDate(self):
+        d=self.cloudimage.date.to_datetime(timezone=CloudImage.timezone)
+        s=d.strftime('%Y-%m-%dT%H:%M:%S')
+        s=gui_string(text=s, caption='Ievadi datumu, YYYY-MM-DDTHH:MM:SS')
+        import datetime
+        d=datetime.datetime.strptime(s, '%Y-%m-%dT%H:%M:%S')
+        self.cloudimage.setDate(d)
+            
+    @handle_exceptions(method_name="Setting coordinates")
+    def SetCoordinates(self):
+        lat,lon,height=self.cloudimage.getLocation()
+        s=f'{lat:.5f},{lon:.5f},{height:.0f}'
+        s=gui_string(text=s, caption='Ievadi koordinātes (lat,lon,z)')
+        s=s.split(',')   
+        lat,lon,height=float(s[0]), float(s[1]),0.0
+        if len(s)>2:
+            height=float(s[2])
+        self.cloudimage.setLocation(lon=lon, lat=lat, height=height)
+            
+    @handle_exceptions(method_name="Setting epiline height")
+    def SetEpilineHeight(self):
+        s=f'{self.z1:.0f},{self.z2:.0f}'
+        s=gui_string(text=s, caption='Ievadi z1,z2')
+        s=s.split(',')   
+        self.z1,self.z2=float(s[0]), float(s[1])
+    def PrintCameraParameters(self):
         if self.cloudimage is not None:
             cldim = self.cloudimage
-            cldim.PrepareCamera(**self.camera_calib_params)
-            # distortion=False, centers=True, separate_x_y=True
-            #cldim.PrepareCamera(method='optnew', distortion=args.optimizeDistortion, centers=args.notOptimizeCenter, separate_x_y=args.notOptimizeUnsymmetric)
             az, el, rot = cldim.camera.get_azimuth_elevation_rotation()
             print(f'Kameras ass azimuts {az:.2f}°')
             print(f'Kameras ass augstums virs horizonta {el:.2f}°')
@@ -208,86 +222,104 @@ class MainW (QMainWindow, Ui_MainWindow):
             print(
                 f'Kameras fokusa attālumi (35mm ekvivalents) {fx:.1f} {fy:.1f}')
             print(f'Kameras ass pozīcija {cx:.1f} {cy:.1f}')
-            self.ZimetAltAzClick()
-        self.pelekot()
+    @handle_exceptions(method_name="Camera calibration")
+    def CalibrateCameraClick(self):
+        if self.cloudimage is not None:
+            cldim = self.cloudimage
+            cldim.PrepareCamera(**self.camera_calib_params)
+            # distortion=False, centers=True, separate_x_y=True
+            #cldim.PrepareCamera(method='optnew', distortion=args.optimizeDistortion, centers=args.notOptimizeCenter, separate_x_y=args.notOptimizeUnsymmetric)
+            self.PrintCameraParameters()
+            self.DrawAltAzClick()
+        self.update_ui_state()
 
-    def NolasitProjektu(self):
-
-        projfile, _ = QFileDialog.getOpenFileName(
-            filter='(*.proj)',
-            caption='Projekta fails')
+    @handle_exceptions(method_name="Loading project")
+    def LoadProject(self):
+        projfile = gui_fname(caption='Projekta fails', filter='(*.proj)')
         if projfile != '':
+            print(f'Loading project {projfile}')
             self.cloudimage2 = None
             self.cpair = None
             self.console.clear()
             self.cloudimage = CloudImage.load(projfile)
             print(f'Loaded project file {projfile}')
             print(self.cloudimage)
-            self.ZimetAttelu()
-        self.pelekot()
-
-    def NolasitProjektu2(self):
-        projfile, _ = QFileDialog.getOpenFileName(
-            filter='(*.proj)',
-            caption='Projekta fails')
+            self.DrawImage()
+        self.update_ui_state()
+            
+    @handle_exceptions(method_name="Loading second project")
+    def LoadProject2(self):
+        projfile = gui_fname(caption='Projekta fails', filter='(*.proj)')
         if projfile != '':
             self.cpair = None
             self.cloudimage2 = CloudImage.load(projfile)
             print(f'Loaded project file {projfile}')
             print(self.cloudimage2)
-            self.ZimetAttelu(otrs=True)
-        self.pelekot()
+            self.DrawImage(otrs=True)
+        self.update_ui_state()
 
-    def SaglabatProjektu(self):
+    @handle_exceptions(method_name="Saving project")
+    def SaveProject(self):
         projfile = os.path.splitext(self.cloudimage.filename)[0]+'.proj'
-        projfile, _ = QFileDialog.getSaveFileName(directory=projfile,
-                                                  filter='(*.proj)',
-                                                  caption='Projekta fails')
+        projfile = gui_save_fname(
+            directory=projfile,
+            caption='Projekta fails',
+            filter='(*.proj)')
         if projfile != '':
             self.cloudimage.save(projfile)
             print(f'Saved project file {projfile}')
-    def IelasitKameru(self):
+            
+    @handle_exceptions(method_name="Loading camera")
+    def LoadCamera(self):
         camfile = os.path.splitext(self.cloudimage.filename)[0]+'_enu.json'
-        camfile, _ = QFileDialog.getOpenFileName(
+        camfile = gui_fname(
             directory=camfile,
-            filter='(*.json)',
-            caption='Kameras fails')
+            caption='Kameras fails',
+            filter='(*.json)')
         if camfile !='':
             self.cloudimage.LoadCamera(camfile)
-    def SaglabatKameru(self):
+            
+    @handle_exceptions(method_name="Saving camera")
+    def SaveCamera(self):
         camfile = os.path.splitext(self.cloudimage.filename)[0]+'_enu.json'
-        camfile, _ = QFileDialog.getSaveFileName(
+        camfile = gui_save_fname(
             directory=camfile,
-            filter='(*.json)',
-            caption='Kameras fails')
+            caption='Kameras fails',
+            filter='(*.json)')
         if camfile !='':
             self.cloudimage.SaveCamera(camfile)
         
-    def ZimetAltAzClick(self):
-        self.disconnect_meerit()
+    @handle_exceptions(method_name="Drawing Alt-Az grid")
+    def DrawAltAzClick(self):
+        self.disconnect_measurement()
         if self.cloudimage is not None:
             self.MplWidget1.canvas.initplot()
             ax = self.MplWidget1.canvas.ax
             plots.PlotAltAzGrid(self.cloudimage, ax=ax)
+            self.PrintCameraParameters()
             cldim = self.cloudimage
             # zvaigžņu koordinātes enu sistēmā, vienības attālumam
             enu_unit_coords = cldim.get_stars_enu_unit_coords()
-            # zvaigžņu pikseļu koordinātes atbilstoši referencētai kamerai
-            campx = cldim.camera.camera_enu.imageFromSpace(enu_unit_coords)
-            for sr, cpx in zip(cldim.starReferences, campx):
-                ix, iy = sr.pixelcoords
-                p = ax.plot(ix, iy, marker='o', fillstyle='none')
-                ax.annotate(sr.name, xy=(ix, iy), xytext=(
-                    3, 3), color='#AAFFAA', fontsize=16, textcoords='offset pixels')
-                ax.plot(cpx[0], cpx[1], marker='x',
-                        fillstyle='none', color=p[0].get_color())
+            if len(enu_unit_coords)>0:
+                # zvaigžņu pikseļu koordinātes atbilstoši referencētai kamerai
+                campx = cldim.camera.camera_enu.imageFromSpace(enu_unit_coords)
+                
+                for sr, cpx in zip(cldim.starReferences, campx):
+                    ix, iy = sr.pixelcoords
+                    p = ax.plot(ix, iy, marker='o', fillstyle='none')
+                    ax.annotate(sr.name, xy=(ix, iy), xytext=(
+                        3, 3), color='#AAFFAA', fontsize=16, textcoords='offset pixels')
+                    ax.plot(cpx[0], cpx[1], marker='x',
+                            fillstyle='none', color=p[0].get_color())
             self.MplWidget1.canvas.draw()
 
-    def ZimetAtteluClick(self):
-        self.ZimetAttelu(otrs=self.cloudimage2 is not None)
+    @handle_exceptions(method_name="Drawing image")
+    def DrawImageClick(self):
+        self.DrawImage(otrs=self.cloudimage2 is not None)
 
-    def ZimetAttelu(self, otrs=False, kontrolpunkti=False):
-        self.disconnect_meerit()
+    @handle_exceptions(method_name="Drawing image")
+    def DrawImage(self, otrs=False, kontrolpunkti=False):
+        self.disconnect_measurement()
         if self.cloudimage is not None:
             if otrs and self.cloudimage2 is not None:
                 self.MplWidget1.canvas.initplot([121, 122])
@@ -299,19 +331,20 @@ class MainW (QMainWindow, Ui_MainWindow):
             #cid = fig.canvas.mpl_connect('button_press_event', onclick)
             ax.imshow(self.cloudimage.imagearray)
             if kontrolpunkti:
-                self.plotMatches(ax, 0)
+                self.plot_matches(ax, 0)
             else:
                 plots.PlotStars(self.cloudimage, ax)
             if otrs and self.cloudimage2 is not None:
                 ax2.imshow(self.cloudimage2.imagearray)
                 if kontrolpunkti:
-                    self.plotMatches(ax2, 1)
+                    self.plot_matches(ax2, 1)
                 else:
                     plots.PlotStars(self.cloudimage2, ax2)
 
             self.MplWidget1.canvas.draw()
             
-    def onclick_ciparotzvaigznes(self, event):
+    @handle_exceptions(method_name="Star digitization click")
+    def onclick_digitize_stars(self, event):
         # https://stackoverflow.com/a/64486726
         ax = event.inaxes
         if ax is None:
@@ -353,35 +386,40 @@ class MainW (QMainWindow, Ui_MainWindow):
                     cldim.starReferences.append(sr)
 
         else:
-            self.StopCiparotZvaigznes()
+            self.StopDigitizeStars()
 
-    def StartCiparotZvaigznes(self):
-        if self.isCiparotZvaigznes is None:
+    @handle_exceptions(method_name="Starting star digitization")
+    def StartDigitizeStars(self):
+        if self.isDigitizeStars is None:
             self.MplWidget1.canvas.fig.set_facecolor('mistyrose')
-            self.ZimetAttelu()
-            self.isCiparotZvaigznes = self.MplWidget1.canvas.mpl_connect(
-                'button_press_event', self.onclick_ciparotzvaigznes)
+            self.DrawImage()
+            self.isDigitizeStars = self.MplWidget1.canvas.mpl_connect(
+                'button_press_event', self.onclick_digitize_stars)
 
-    def StopCiparotZvaigznes(self):
-        if self.isCiparotZvaigznes is not None:
-            self.MplWidget1.canvas.mpl_disconnect(self.isCiparotZvaigznes)
+    @handle_exceptions(method_name="Stopping star digitization")
+    def StopDigitizeStars(self):
+        if self.isDigitizeStars is not None:
+            self.MplWidget1.canvas.mpl_disconnect(self.isDigitizeStars)
             filename_stars = os.path.splitext(self.cloudimage.filename)[0]+'_zvaigznes.txt'
-            filename_stars, _ = QFileDialog.getSaveFileName(directory=filename_stars,
-                                                       filter='(*.txt)',
-                                                       caption='Zvaigžņu fails')
+            filename_stars = gui_save_fname(
+                directory=filename_stars,
+                caption='Zvaigžņu fails',
+                filter='(*.txt)')
             if filename_stars != '':            
                 self.cloudimage.saveStarReferences(filename_stars)
             self.MplWidget1.canvas.fig.set_facecolor('white')
-            self.ZimetAttelu()
-        self.isCiparotZvaigznes = None
+            self.DrawImage()
+        self.isDigitizeStars = None
 
-    def CiparotZvaigznesClick(self):
-        if self.isCiparotZvaigznes is None:
-            self.StartCiparotZvaigznes()
+    @handle_exceptions(method_name="Star digitization button click")
+    def DigitizeStarsClick(self):
+        if self.isDigitizeStars is None:
+            self.StartDigitizeStars()
         else:
-            self.StopCiparotZvaigznes()
+            self.StopDigitizeStars()
 
-    def ProjicetClick(self, tips=0):
+    @handle_exceptions(method_name="Projection click")
+    def ProjectClick(self, tips=0):
         if hasattr(self.cloudimage, "camera"):
             text = f'{self.projHeight}'
             s = gui_string(text=text, caption='Augstums kilometros')
@@ -389,21 +427,23 @@ class MainW (QMainWindow, Ui_MainWindow):
                 try:
                     self.projHeight = float(s)
                     if tips in [0, 1]:
-                        self.Projicet(self.projHeight, atseviski=tips == 0)
+                        self.Project(self.projHeight, atseviski=tips == 0)
                     else:
-                        self.ProjicetVidejotuAttelu(self.projHeight)
-                except:
-                    print('Nepareiza ievade!')
+                        self.ProjectAveragedImage(self.projHeight)
+                except Exception as e:
+                    print(f'Nepareiza ievade! {str(e)}')
                     raise
 
-    def ProjicetNoKartesClick(self, tips=0):
+    @handle_exceptions(method_name="Projection from height map click")
+    def ProjectFromMapClick(self, tips=0):
         if hasattr(self.cloudimage, "camera") and self.heightmap is not None:
             if tips in [0, 1]:
-                self.Projicet(self.heightmap.heightmap /
+                self.Project(self.heightmap.heightmap /
                               1000.0, atseviski=tips == 0)
             else:
-                self.ProjicetVidejotuAttelu(self.heightmap.heightmap/1000.0)
+                self.ProjectAveragedImage(self.heightmap.heightmap/1000.0)
 
+    @handle_exceptions(method_name="Calculating distance")
     def distance(self, p1_webmerc, p2_webmerc):
         ll1 = tilemapbase.to_lonlat(*p1_webmerc)
         ll2 = tilemapbase.to_lonlat(*p2_webmerc)
@@ -414,7 +454,8 @@ class MainW (QMainWindow, Ui_MainWindow):
         dist, az = pymap3d.vincenty.vdist(*ll1, *ll2)
         return dist
 
-    def onclick_meritattalumu(self, event):
+    @handle_exceptions(method_name="Distance measurement click")
+    def onclick_measure_distance(self, event):
         ax = event.inaxes
         if ax is None:
             return
@@ -430,51 +471,50 @@ class MainW (QMainWindow, Ui_MainWindow):
             return
         #print('you pressed', event.key, event.xdata, event.ydata)
         if event.button == 1:
-            if self.meerit is None:
-                # print(self.meerit)
+            if self.measure is None:
+                # print(self.measure)
                 pp = ax.plot(event.xdata, event.ydata, marker='D',ms=5, color='orange')
-                self.meerit = {'p1':(event.xdata, event.ydata), 'plotp1':pp}
+                self.measure = {'p1':(event.xdata, event.ydata), 'plotp1':pp}
                 ax.figure.canvas.draw()
             else:
-                try:
-                    xx = (event.xdata, event.ydata)
-                    #print(self.meerit, xx)
-                    dist = self.distance(self.meerit['p1'], xx)
-                    for c in ['plotp1','ln']:
-                        if c in self.meerit:
-                            line = self.meerit[c][0]
-                            line.remove() 
-                    if 'annot' in self.meerit:
-                        self.meerit['annot'].remove()                            
-                    self.meerit = None
-                    print(f'{dist:.0f}m')
-                    ax.figure.canvas.draw()
-                except:
-                    raise
+                xx = (event.xdata, event.ydata)
+                #print(self.measure, xx)
+                dist = self.distance(self.measure['p1'], xx)
+                for c in ['plotp1','ln']:
+                    if c in self.measure:
+                        line = self.measure[c][0]
+                        line.remove() 
+                if 'annot' in self.measure:
+                    self.measure['annot'].remove()                            
+                self.measure = None
+                print(f'{dist:.0f}m')
+                ax.figure.canvas.draw()
 
-    def move_meritattalumu(self, event):
-        if self.meerit is not None:
+    @handle_exceptions(method_name="Distance measurement movement")
+    def move_measure_distance(self, event):
+        if self.measure is not None:
             ax = event.inaxes
             if ax is not None:
                 xx = (event.xdata, event.ydata)
-                dist = self.distance(self.meerit['p1'], xx)
+                dist = self.distance(self.measure['p1'], xx)
                 
-                if 'ln' in self.meerit:
-                    line = self.meerit['ln'].pop(0)
+                if 'ln' in self.measure:
+                    line = self.measure['ln'].pop(0)
                     line.remove()                                
-                if 'annot' in self.meerit:
-                    self.meerit['annot'].remove()
-                self.meerit['ln'] = ax.plot([self.meerit['p1'][0], xx[0]], [self.meerit['p1'][1], xx[1]], color='black')
-                self.meerit['annot']=ax.annotate(f'{dist:.0f}m',xy=xx, xytext=(10,10), textcoords='offset points', fontsize=12, bbox=dict(facecolor='white', edgecolor='black'))
+                if 'annot' in self.measure:
+                    self.measure['annot'].remove()
+                self.measure['ln'] = ax.plot([self.measure['p1'][0], xx[0]], [self.measure['p1'][1], xx[1]], color='black')
+                self.measure['annot']=ax.annotate(f'{dist:.0f}m',xy=xx, xytext=(10,10), textcoords='offset points', fontsize=12, bbox=dict(facecolor='white', edgecolor='black'))
                 ax.figure.canvas.draw()
 
-    def plotProjicet(self, pimages, ax, plotMap=True, plotPoints=True):
+    @handle_exceptions(method_name="Plotting projection")
+    def plot_projection(self, pimages, ax, plotMap=True, plotPoints=True):
         def xy_latlon_str(x, y):
             lon, lat = tilemapbase.to_lonlat(x, y)
             return f'{lat:.3f}, {lon:.3f}'
         ax.format_coord = xy_latlon_str
 
-        self.meerit = None
+        self.measure = None
         pp = [[self.cloudimage.location.lon.value,
                self.cloudimage.location.lat.value]]
         if self.cloudimage2 is not None:
@@ -488,20 +528,24 @@ class MainW (QMainWindow, Ui_MainWindow):
                                    alpha=self.map_alpha,
                                    ax=ax,
                                    plotMap=plotMap)
-    def disconnect_meerit(self):
-        if self.meerit_events is not None:
-            for e in self.meerit_events:
-                self.MplWidget1.canvas.mpl_disconnect(e)
-            self.meerit_events=None
-    def connect_meerit(self):
-        self.meerit_events = [self.MplWidget1.canvas.mpl_connect(
-            'button_press_event', self.onclick_meritattalumu),
-        self.MplWidget1.canvas.mpl_connect(
-            'motion_notify_event', self.move_meritattalumu)]
             
-    def Projicet(self, projHeight, atseviski=True):
-        
-        self.disconnect_meerit()
+    @handle_exceptions(method_name="Disconnecting measurement")
+    def disconnect_measurement(self):
+        if self.measure_events is not None:
+            for e in self.measure_events:
+                self.MplWidget1.canvas.mpl_disconnect(e)
+            self.measure_events=None
+            
+    @handle_exceptions(method_name="Connecting measurement")
+    def connect_measurement(self):
+        self.measure_events = [self.MplWidget1.canvas.mpl_connect(
+            'button_press_event', self.onclick_measure_distance),
+        self.MplWidget1.canvas.mpl_connect(
+            'motion_notify_event', self.move_measure_distance)]
+            
+    @handle_exceptions(method_name="Projecting image")
+    def Project(self, projHeight, atseviski=True):
+        self.disconnect_measurement()
         
         self.webmerc.cloudImage = self.cloudimage
         self.webmerc.prepare_reproject_from_camera(projHeight)
@@ -518,18 +562,19 @@ class MainW (QMainWindow, Ui_MainWindow):
 
         if atseviski and self.cloudimage2 is not None:
             self.MplWidget1.canvas.initplot([121, 122])
-            self.plotProjicet(pimages[0:1], self.MplWidget1.canvas.ax[0])
-            self.plotProjicet(pimages[1:2], self.MplWidget1.canvas.ax[1])
+            self.plot_projection(pimages[0:1], self.MplWidget1.canvas.ax[0])
+            self.plot_projection(pimages[1:2], self.MplWidget1.canvas.ax[1])
         else:
             self.MplWidget1.canvas.initplot()
-            self.plotProjicet(pimages, self.MplWidget1.canvas.ax)
+            self.plot_projection(pimages, self.MplWidget1.canvas.ax)
 
-        self.connect_meerit()
+        self.connect_measurement()
         self.MplWidget1.canvas.draw()
-        self.pelekot()
+        self.update_ui_state()
 
-    def ProjicetVidejotuAttelu(self, projHeight):
-        self.disconnect_meerit()
+    @handle_exceptions(method_name="Projecting averaged image")
+    def ProjectAveragedImage(self, projHeight):
+        self.disconnect_measurement()
         
         if self.cloudimage2 is not None:
             self.webmerc.cloudImage = self.cloudimage
@@ -544,45 +589,41 @@ class MainW (QMainWindow, Ui_MainWindow):
             img_mean, img_diff, _, img_bicolor = utils.getAverageImages(
                 pimages)
             self.MplWidget1.canvas.initplot([131, 132, 133])
-            self.plotProjicet(
+            self.plot_projection(
                 [img_mean], self.MplWidget1.canvas.ax[0], plotMap=False, plotPoints=False)
-            self.plotProjicet(
+            self.plot_projection(
                 [img_diff], self.MplWidget1.canvas.ax[1], plotMap=False, plotPoints=False)
-            self.plotProjicet(
+            self.plot_projection(
                 [img_bicolor[(0, 1)]], self.MplWidget1.canvas.ax[2], plotMap=False, plotPoints=False)
             self.MplWidget1.canvas.draw()
-            self.connect_meerit()
-    def MainitApgabalu(self):
+            self.connect_measurement()
+            
+    @handle_exceptions(method_name="Changing projection region")
+    def ChangeRegion(self):
         w = self.webmerc
         text = f'{w.lonmin},{w.lonmax},{w.latmin},{w.latmax},{w.pixel_per_km}'
         s = gui_string(
             text=text, caption='lonmin,lonmax,latmin,latmax,resolution_km')
         if s is not None:
-            try:
-                s = [float(x) for x in s.split(',')]
-                if len(s) == 5:
-                    self.webmerc = WebMercatorImage(self.cloudimage, *s)
-                    print(self.webmerc)
-            except:
-                print('Nepareiza ievade!')
-                pass
+            s = [float(x) for x in s.split(',')]
+            if len(s) == 5:
+                self.webmerc = WebMercatorImage(self.cloudimage, *s)
+                print(self.webmerc)
 
-    def KartesApgabals(self):
+    @handle_exceptions(method_name="Setting map region")
+    def MapRegion(self):
         w = self.map_bounds
         text = f'{w[0]},{w[1]},{w[2]},{w[3]},{self.map_alpha}'
         s = gui_string(
             text=text, caption='lonmin,lonmax,latmin,latmax,map_alpha')
         if s is not None:
-            try:
-                s = [float(x) for x in s.split(',')]
-                if len(s) == 5:
-                    self.map_bounds = s[:4]
-                    self.map_alpha = max(min(s[4], 1.0), 0.0)
-            except:
-                print('Nepareiza ievade!')
-                pass
+            s = [float(x) for x in s.split(',')]
+            if len(s) == 5:
+                self.map_bounds = s[:4]
+                self.map_alpha = max(min(s[4], 1.0), 0.0)
 
-    def onclick_ciparotkontrolpunktus(self, event):
+    @handle_exceptions(method_name="Control point digitization click")
+    def onclick_digitize_control_points(self, event):
         # https://stackoverflow.com/a/64486726
         ax = event.inaxes
         if ax is None:
@@ -597,7 +638,7 @@ class MainW (QMainWindow, Ui_MainWindow):
             return
         # print(event)
         if event.button != 1:
-            self.StopCiparotKontrolpunkti()
+            self.StopDigitizeControlPoints()
 
         #print(self.pairNo, ax == self.MplWidget1.canvas.ax[0],ax == self.MplWidget1.canvas.ax[1])
         if not ((ax == self.MplWidget1.canvas.ax[0] and self.pairNo == 0) or (ax == self.MplWidget1.canvas.ax[1] and self.pairNo == 1)):
@@ -617,7 +658,7 @@ class MainW (QMainWindow, Ui_MainWindow):
 
             if self.pairNo == 0:
                 epilines = self.cpair.GetEpilinesAtHeightInterval(
-                    [75, 90], [[X_coordinate, Y_coordinate]], True)
+                    [self.z1, self.z2], [[X_coordinate, Y_coordinate]], True)
                 # print(epilines)
                 self.tempepiline = self.MplWidget1.canvas.ax[1].plot(epilines[0, :, 0], epilines[0, :, 1],
                                                                      color='yellow', marker='o', ms=1, lw=0.8)
@@ -629,59 +670,68 @@ class MainW (QMainWindow, Ui_MainWindow):
                         f'Augstums {llh[2][0]/1000.0:.1f}km, Staru attālums {rayminimaldistance[0]:.1f}m')
                     line = self.tempepiline.pop(0)
                     line.remove()
-                except:
-                    pass
+                except Exception as e:
+                    print(f"Error calculating height: {str(e)}")
 
             ax.figure.canvas.draw()
 
             self.pairNo = (self.pairNo + 1) % 2
 
-    def CiparotKontrolpunktusClick(self):
-        
-        if self.isCiparotKontrolpunkti is None:
-            self.StartCiparotKontrolpunkti()
+    @handle_exceptions(method_name="Control point digitization button click")
+    def DigitizeControlPointsClick(self):
+        if self.isDigitizeControlPoints is None:
+            self.StartDigitizeControlPoints()
         else:
-            self.StopCiparotKontrolpunkti()
+            self.StopDigitizeControlPoints()
 
-    def StartCiparotKontrolpunkti(self):
-        if self.isCiparotKontrolpunkti is None and self.cloudimage2 is not None:
+    @handle_exceptions(method_name="Starting control point digitization")
+    def StartDigitizeControlPoints(self):
+        if self.isDigitizeControlPoints is None and self.cloudimage2 is not None:
             self.MplWidget1.canvas.fig.set_facecolor('plum')
-            self.ZimetAttelu(otrs=True, kontrolpunkti=True)
+            self.DrawImage(otrs=True, kontrolpunkti=True)
             if self.cpair is None:
                 self.cpair = CloudImagePair(self.cloudimage, self.cloudimage2)
             self.pairNo = 0
-            self.isCiparotKontrolpunkti = self.MplWidget1.canvas.mpl_connect(
-                'button_press_event', self.onclick_ciparotkontrolpunktus)
+            self.isDigitizeControlPoints = self.MplWidget1.canvas.mpl_connect(
+                'button_press_event', self.onclick_digitize_control_points)
 
-    def StopCiparotKontrolpunkti(self):
-        if self.isCiparotKontrolpunkti is not None:
-            self.MplWidget1.canvas.mpl_disconnect(self.isCiparotKontrolpunkti)
+    @handle_exceptions(method_name="Stopping control point digitization")
+    def StopDigitizeControlPoints(self):
+        if self.isDigitizeControlPoints is not None:
+            self.MplWidget1.canvas.mpl_disconnect(self.isDigitizeControlPoints)
             ll = min(len(self.cpair.correspondances[0]), len(
                 self.cpair.correspondances[1]))
             self.cpair.correspondances[0] = self.cpair.correspondances[0][0:ll]
             self.cpair.correspondances[1] = self.cpair.correspondances[1][0:ll]
             matchfile = f'{os.path.split(self.cloudimage.filename)[0]}/{self.cloudimage.code}_{self.cloudimage2.code}.txt'
-            matchfile, _ = QFileDialog.getSaveFileName(directory=matchfile,
-                                                       filter='(*.txt)',
-                                                       caption='Atbilstību fails')
+            matchfile = gui_save_fname(
+                directory=matchfile,
+                caption='Atbilstību fails',
+                filter='(*.txt)')
             if matchfile != '':
                 self.cpair.SaveCorrespondances(matchfile)
             self.MplWidget1.canvas.fig.set_facecolor('white')
-            self.ZimetAttelu(otrs=True, kontrolpunkti=True)
-        self.isCiparotKontrolpunkti = None
-        self.pelekot()
+            self.DrawImage(otrs=True, kontrolpunkti=True)
+        self.isDigitizeControlPoints = None
+        self.update_ui_state()
 
-    def IelasitKontrolpunktus(self):
+    @handle_exceptions(method_name="Loading control points")
+    def LoadControlPoints(self):
         if self.cloudimage2 is not None:
             matchfile = f'{os.path.split(self.cloudimage.filename)[0]}/{self.cloudimage.code}_{self.cloudimage2.code}.txt'
-            matchfile = gui_fname(directory=matchfile, filter='(*.txt)')
+            # Use gui_fname function 
+            matchfile = gui_fname(
+                directory=matchfile,
+                caption='Atbilstību fails',
+                filter='(*.txt)')
             if matchfile != '':
                 self.cpair = CloudImagePair(self.cloudimage, self.cloudimage2)
                 self.cpair.LoadCorrespondances(matchfile)
-                self.ZimetAttelu(otrs=True, kontrolpunkti=True)
-        self.pelekot()
+                self.DrawImage(otrs=True, kontrolpunkti=True)
+        self.update_ui_state()
 
-    def plotMatches(self, ax, pairNo):
+    @handle_exceptions(method_name="Plotting match points")
+    def plot_matches(self, ax, pairNo):
         if self.cpair is not None:
             for i, (x, y) in enumerate(self.cpair.correspondances[pairNo]):
                 ax.plot(x, y, marker='o', fillstyle='none',
@@ -689,15 +739,16 @@ class MainW (QMainWindow, Ui_MainWindow):
                 ax.annotate(str(i+1), xy=(x, y), xytext=(3, 3),
                             color='#AAFFAA', fontsize=16, textcoords='offset pixels')
 
-    def ZimetKontrolpunktuAugstumus(self):
-        self.disconnect_meerit()
+    @handle_exceptions(method_name="Drawing control point heights")
+    def DrawControlPointHeights(self):
+        self.disconnect_measurement()
         
         if self.cpair is not None:
             self.MplWidget1.canvas.initplot([121, 122])
             ax = self.MplWidget1.canvas.ax[0]
             ax2 = self.MplWidget1.canvas.ax[1]
 
-            z1, z2 = 75, 90
+            z1, z2 = self.z1, self.z2
 
             llh, rayminimaldistance, z_intrinsic_error, valid = self.cpair.GetHeightPoints(
                 *self.cpair.correspondances)
@@ -713,10 +764,12 @@ class MainW (QMainWindow, Ui_MainWindow):
                                         ax=ax2)
             self.MplWidget1.canvas.draw()
 
-    def IzveidotAugstumuKarti(self):
+    @handle_exceptions(method_name="Creating height map")
+    def CreateHeightMap(self):
         if self.cpair is not None:
             llh, rayminimaldistance, z_intrinsic_error, valid = self.cpair.GetHeightPoints(
                 *self.cpair.correspondances)
+            valid[:] = True
             if any(valid):
                 self.webmerc.cloudimage = self.cloudimage
                 heightgrid = self.webmerc.PrepareHeightMap(
@@ -725,35 +778,40 @@ class MainW (QMainWindow, Ui_MainWindow):
                 self.heightmap.heightmap = heightgrid
                 self.heightmap.points = llh
                 self.heightmap.validpoints = valid
-                self.ZimetAugstumuKarti()
+                self.DrawHeightMap()
             else:
                 print('Nevar izveidot augstumu karti - nav derīgu kontrolpunktu')
-            self.pelekot()
+            self.update_ui_state()
 
-    def SaglabatAugstumuKarti(self):
+    @handle_exceptions(method_name="Saving height map")
+    def SaveHeightMap(self):
         if self.heightmap is not None:
             projfile = os.path.splitext(self.cloudimage.filename)[0]+'.hmp'
-            projfile, _ = QFileDialog.getSaveFileName(directory=projfile,
-                                                      filter='(*.hmp)',
-                                                      caption='Augstumu kartes fails')
+            projfile = gui_save_fname(
+                directory=projfile,
+                caption='Augstumu kartes fails',
+                filter='(*.hmp)')
             if projfile != '':
                 self.heightmap.save(projfile)
                 print(f'Saved heightmap {projfile}')
 
-    def IelasitAugstumuKarti(self):
+    @handle_exceptions(method_name="Loading height map")
+    def LoadHeightMap(self):
         if self.cloudimage is not None:
             projfile = os.path.splitext(self.cloudimage.filename)[0]+'.hmp'
-            projfile, _ = QFileDialog.getOpenFileName(directory=projfile,
-                                                      filter='(*.hmp)',
-                                                      caption='Augstumu kartes fails')
+            projfile = gui_fname(
+                directory=projfile,
+                caption='Augstumu kartes fails',
+                filter='(*.hmp)')
             if projfile != '':
                 self.heightmap = HeightMap.load(projfile)
                 self.webmerc = self.heightmap.webmerc
-                print(f'Saved heightmap {projfile}')
-            self.pelekot()
+                print(f'Loaded heightmap {projfile}')
+            self.update_ui_state()
 
-    def ZimetAugstumuKarti(self):
-        self.disconnect_meerit()
+    @handle_exceptions(method_name="Drawing height map")
+    def DrawHeightMap(self):
+        self.disconnect_measurement()
         
         if self.heightmap is not None:
             self.MplWidget1.canvas.initplot()
@@ -772,25 +830,24 @@ class MainW (QMainWindow, Ui_MainWindow):
             cs = ax.scatter(xy[:, 0], xy[:, 1], c=llh[2]
                             [valid], norm=csl[0].norm, cmap=csl[0].cmap)
             ax.figure.colorbar(csl[0])
-            self.connect_meerit()
+            self.connect_measurement()
             self.MplWidget1.canvas.draw()
 
-    def KamerasKalibracijasParametri(self):
+    @handle_exceptions()
+    def CameraCalibrationParameters(self):
         s = f'{int(self.camera_calib_params["distortion"])},{int(self.camera_calib_params["centers"])},{int(self.camera_calib_params["separate_x_y"])},{self.camera_calib_params["projectiontype"]}'
         s = gui_string(text=s, caption="distortion,centers,separate_x_y,projectiontype")
         if s is not None:
-            try:
-                #s = [int(x) for x in s.split(',')]
-                s=s.split(',')
-                self.camera_calib_params["distortion"] = int(s[0]) == 1
-                self.camera_calib_params["centers"] = int(s[1]) != 0
-                self.camera_calib_params["separate_x_y"] = int(s[2]) != 0
-                self.camera_calib_params["projectiontype"] = s[3]
-                print('Kalibrēšanas parametri:', self.camera_calib_params)
-            except Exception as e:
-                print('Nepareizi ievades parametri',e)
+            #s = [int(x) for x in s.split(',')]
+            s=s.split(',')
+            self.camera_calib_params["distortion"] = int(s[0])
+            self.camera_calib_params["centers"] = int(s[1]) != 0
+            self.camera_calib_params["separate_x_y"] = int(s[2]) != 0
+            self.camera_calib_params["projectiontype"] = s[3]
+            print('Kalibrēšanas parametri:', self.camera_calib_params)
 
-    def SaglabatProjicetoAttelu(self, jpg=True):
+    @handle_exceptions(method_name="Saving projected image")
+    def SaveProjectedImage(self, jpg=True):
         if self.projected_image is not None:
             ext = '.jpg' if jpg else '.tif'
             extjgw = '.jgw' if jpg else '.tfw'
@@ -802,10 +859,10 @@ class MainW (QMainWindow, Ui_MainWindow):
                 zs = ''
 
             projfile = f[0]+'/proj_'+os.path.splitext(f[1])[0]+zs+ext
-
-            projfile, _ = QFileDialog.getSaveFileName(directory=projfile,
-                                                      filter=f'(*{ext})',
-                                                      caption='Projicētais attēls')
+            projfile = gui_save_fname(
+                directory=projfile,
+                caption='Projicētais attēls',
+                filter=f'(*{ext})')
             if projfile != '':
                 jgwfile = os.path.splitext(projfile)[0]+extjgw
                 if jpg:
@@ -823,9 +880,19 @@ class MainW (QMainWindow, Ui_MainWindow):
                 print('Fails saglabāts:', projfile)
 
 
+def excepthook(exc_type, exc_value, exc_tb):
+    """Global exception handler to prevent GUI termination on exceptions."""
+    import traceback
+    tb = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
+    print("EXCEPTION CAUGHT:")
+    print(tb)
+
 if __name__ == '__main__':
 
+    # Install the global exception handler
+    sys.excepthook = excepthook
+    
     app = QApplication(sys.argv)
-    myapp = MainW()
+    myapp = MainW()    
     myapp.show()
     sys.exit(app.exec_())

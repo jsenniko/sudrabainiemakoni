@@ -57,6 +57,7 @@
      <string>Fails</string>
     </property>
     <addaction name="actionIelas_t_att_lu"/>
+    <addaction name="actionMainit_att_lu"/>
     <addaction name="separator"/>
     <addaction name="actionIelas_t_projektu"/>
     <addaction name="actionSaglab_t_projektu"/>
@@ -107,6 +108,8 @@
     <addaction name="separator"/>
     <addaction name="actionUzst_d_t_datumu"/>
     <addaction name="actionUzst_d_t_platumu_garumu_augstumu"/>
+    <addaction name="separator"/>
+    <addaction name="actionEpil_niju_augstums"/>
    </widget>
    <addaction name="menuFails"/>
    <addaction name="menuZ_m_t"/>
@@ -317,6 +320,19 @@
   <action name="actionUzst_d_t_platumu_garumu_augstumu">
    <property name="text">
     <string>Uzstādīt platumu, garumu, augstumu</string>
+   </property>
+  </action>
+  <action name="actionEpil_niju_augstums">
+   <property name="text">
+    <string>Epilīniju augstums</string>
+   </property>
+  </action>
+  <action name="actionMainit_att_lu">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Mainīt attēlu</string>
    </property>
   </action>
  </widget>
