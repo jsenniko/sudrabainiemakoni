@@ -32,33 +32,44 @@ def GetTestPxls(space_coords, pxls, fx, fy, cx, cy):
 def ResFOV(x, space_coords, pxls):
     test_pxls, rotmatr = GetTestPxls(space_coords, pxls, x[0], x[1], x[2], x[3])
     return np.sqrt(np.mean((test_pxls-pxls)**2))
-def ResFOVCamera(x, camera, space_coords, pxls, distortion=True, centers=True, separate_x_y=True):
+def ResFOVCamera(x, camera, space_coords, pxls, distortion=3, focallength = True, centers=True, separate_x_y=True, fixed_rotation=False):
     """
     camera - cameratransform.camera
     """
-    if separate_x_y:
-        fx, fy = x[0], x[1]
-        n=2
+    n=0
+    if focallength:
+        if separate_x_y:
+            fx, fy = x[n], x[n+1]
+            n=n+2
+        else:
+            fx=fy=x[n]
+            n=n+1
     else:
-        fx=fy=x[0]
-        n=1
+        fx, fy = camera.focallength_x_px, camera.focallength_y_px
 
     if centers:
+        cx, cy = x[n], x[n+1]
         n=n+2
-        cx, cy = x[2], x[3]
     else:
         cx, cy = camera.center_x_px, camera.center_y_px
-    rotmatr = GetRotMatr(space_coords, pxls, fx, fy, cx, cy)
+    if not fixed_rotation:
+        rotmatr = GetRotMatr(space_coords, pxls, fx, fy, cx, cy)
     camera.focallength_x_px = fx
     camera.focallength_y_px = fy
     camera.center_x_px=cx
     camera.center_y_px=cy
-    angles = Orientation_fromRotation(rotmatr)
-    camera.roll_deg=angles['roll_deg']
-    camera.tilt_deg=angles['tilt_deg']
-    camera.heading_deg=angles['heading_deg']
-    if distortion:
+    if not fixed_rotation:
+        angles = Orientation_fromRotation(rotmatr)
+        camera.roll_deg=angles['roll_deg']
+        camera.tilt_deg=angles['tilt_deg']
+        camera.heading_deg=angles['heading_deg']
+    if distortion>0:
         camera.k1=x[n]
+        if distortion>1:
+            camera.k2=x[n+1]
+            if distortion>2:
+                camera.k3=x[n+2]
+        
     test_pxls = camera.imageFromSpace(space_coords, hide_backpoints=False)
     return np.sqrt(np.mean((test_pxls-pxls)**2))
 def reload_camera(camera):
@@ -92,25 +103,33 @@ def save_camera(camera, filename):
     with open(filename, "w") as fp:
         fp.write(json.dumps(export_dict, indent=4))
 
-def OptimizeCamera(camera, enu_unit_coords, pxls, distortion=True, centers=True,  separate_x_y=True,
-                   f_bounds=[1000,10000], cx_bounds=[0, 6000], cy_bounds=[0,4000]):
+def OptimizeCamera(camera, enu_unit_coords, pxls, distortion=3, focallength = True, centers=True,  separate_x_y=True, fixed_rotation=False,
+                   f_bounds=[500,10000], cx_bounds=[0, 6000], cy_bounds=[0,4000]):
     fx,fy, cx,cy =  camera.focallength_x_px, camera.focallength_y_px, camera.center_x_px, camera.center_y_px
     #print(f_bounds, cx_bounds, cy_bounds)
-    x0 = [fx]
+    x0 = []
+    bounds = []
+    if focallength:
+        x0 = x0 + [fx]
 
-    bounds=[f_bounds]
-    if separate_x_y:
-        bounds=bounds+[f_bounds]
-        x0 = x0 + [fy]
+        bounds=[f_bounds]
+        if separate_x_y:
+            bounds=bounds+[f_bounds]
+            x0 = x0 + [fy]
     if centers:
         x0=x0+[cx,cy]
         bounds = bounds + [cx_bounds, cy_bounds]
-    if distortion:
+    if distortion>0:
         x0=x0+[0.0]
-        bounds = bounds + [[0.0, 1.0]]
+        bounds = bounds + [[-5.0, 5.0]]
+        if distortion>1:
+            x0=x0+[0.0]
+            bounds = bounds + [[-5.0, 5.0]]
+            if distortion>2:
+                x0=x0+[0.0]
+                bounds = bounds + [[-5.0, 5.0]]
 
-
-    optres = scipy.optimize.minimize(ResFOVCamera, x0, args=(camera,  enu_unit_coords, pxls, distortion, centers,separate_x_y), method='SLSQP',
+    optres = scipy.optimize.minimize(ResFOVCamera, x0, args=(camera,  enu_unit_coords, pxls, distortion, focallength, centers,separate_x_y,fixed_rotation), method='SLSQP',
                         bounds=bounds)
     print(optres)
     # construct new camera from optimized camera parameters

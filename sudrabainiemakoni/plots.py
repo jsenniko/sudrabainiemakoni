@@ -227,7 +227,8 @@ def PlotReferencedImages(webmerc: WebMercatorImage,
                          alpha=0.8,
                          ax=None,
                          initData = None,
-                         plotMap = True,):
+                         plotMap = True,
+                         callback=None,):
     import tilemapbase
     if initData is None:
         tilemapbase.init(create=True)
@@ -237,7 +238,7 @@ def PlotReferencedImages(webmerc: WebMercatorImage,
         image_bounds = e1.to_project_web_mercator()
         plotter = tilemapbase.Plotter(extent, t, width=500)
     else:
-       image_bounds, plotter, t = initData
+        image_bounds, plotter, t = initData
     import matplotlib.transforms
     w=16
     h=9*w/16
@@ -264,6 +265,8 @@ def PlotReferencedImages(webmerc: WebMercatorImage,
     for plonlat in camera_points:
         p = tilemapbase.project(plonlat[0], plonlat[1])
         ax.plot(p[0],p[1],marker='o', ms=12)
+    if callable(callback):
+        callback(ax)
     if outputFileName is not None:
         fig.savefig(outputFileName, dpi=300, bbox_inches='tight')
     if doPlot:

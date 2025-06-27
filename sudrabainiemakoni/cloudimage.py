@@ -426,14 +426,14 @@ class Camera:
                 ct.FitParameter("k1", lower=0, upper=1, value=0),
                 ], iterations=2e3)
 
-    def Fit(self, method='optnew', distortion=False, centers=True, separate_x_y=True, projectiontype='rectilinear'):
+    def Fit(self, method='optnew', distortion=0, centers=True, separate_x_y=True, projectiontype='rectilinear'):
         #exif = utils.getExifTags(self.cloudImage.filename)
         #focallength = exif.get('FocalLength', 24)
         sensor_size = (36, 24)
         focallength = utils.getExifEquivalentFocalLength35mm(self.cloudImage.filename)
 
         # if focal length given in exif specify range f/2 - 2*f
-        f_bounds = np.array([12, 600]) if (focallength is None or focallength<=0.0) else np.array([focallength/2.0, focallength*2.0])
+        f_bounds = np.array([5, 600]) if (focallength is None or focallength<=0.0) else np.array([focallength/2.0, focallength*2.0])
         f_bounds = f_bounds/sensor_size[0]*self.cloudImage.imagearray.shape[1]
 
 
@@ -612,9 +612,23 @@ class CloudImage:
         if not os.path.exists(d.filename):
             # try relative path
             test = os.path.join(os.path.dirname(filename), os.path.basename(d.filename))
+            print(f'Trying 1 {test}')
             if os.path.exists(test):
                 d.filename = test
-
+            
+            fn = d.filename
+            t1=''
+            while fn != '':
+                fn,f2 = os.path.split(fn)
+                if t1=='':
+                    t1 = f2
+                else:
+                    t1 = os.path.join(f2, t1)
+                test = os.path.join(os.path.dirname(filename), t1)
+                print(f'Trying 2 {test}')
+                if os.path.exists(test):
+                    d.filename = test
+            print(f'Image does not exist {d.filename}')
         #d.LoadCamera(filename)
         return d
 
@@ -837,11 +851,14 @@ class CloudImage:
         return direction
 
     def get_stars_enu_unit_coords(self):
-        stars_altaz = self.getSkyCoords().transform_to(self.altaz)
-        enu_unit_coords = pymap3d.aer2enu(stars_altaz.az.value, stars_altaz.alt.value,1)
-        enu_unit_coords=np.array(enu_unit_coords).T
-        return enu_unit_coords
-
+        skycoords = self.getSkyCoords()
+        if len(skycoords)>0:
+            stars_altaz = skycoords.transform_to(self.altaz)
+            enu_unit_coords = pymap3d.aer2enu(stars_altaz.az.value, stars_altaz.alt.value,1)
+            enu_unit_coords=np.array(enu_unit_coords).T
+            return enu_unit_coords
+        else:
+            return np.array([])
 class Reprojector_to_Camera:
     def __init__(self, cldim: CloudImage, camera_ecef):
         self.cloudImage = cldim
