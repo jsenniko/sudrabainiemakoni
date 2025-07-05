@@ -17,26 +17,8 @@ from sudrabainiemakoni import utils
 from sudrabainiemakoni import geoutils
 from sudrabainiemakoni import optimize_camera
 from sudrabainiemakoni import calculations
+from sudrabainiemakoni.starreference import StarReference
 import cameraprojections
-class StarReference:
-    def __init__(self, name, pixelcoords):
-        self.name = name
-        self.pixelcoords = pixelcoords
-        self.skycoord: astropy.coordinates.SkyCoord = None
-    def __str__(self):
-        return f"{self.name}"
-    def __repr__(self):
-        return f"{self.name} {self.skycoord.__repr__()}"
-    def getSkyCoord(self):
-        try:
-            # literal ra, dec in degrees
-            l=self.name.split(',')
-            ra, dec = float(l[0]), float(l[1])
-            c=astropy.coordinates.SkyCoord(ra, dec, unit='deg')
-        except:
-            c=astropy.coordinates.SkyCoord.from_name(self.name)
-        print(self.name, c)
-        self.skycoord = c
 
 class AAZImage:
     def __init__(self, cloudImage):
@@ -634,7 +616,7 @@ class CloudImage:
 
     def __init__(self, code, filename):
         self.code = code
-        self.starReferences :list[StarReference] = []
+        self.starReferences: list[StarReference] = []
         self.filename = os.path.abspath(filename)
         self.location: astropy.coordinates.EarthLocation = astropy.coordinates.EarthLocation(0,0)
         self.date: astropy.time.Time = astropy.time.Time(datetime.datetime.now())
@@ -681,17 +663,7 @@ class CloudImage:
         print('UTC:', cldim.date)
         print(cldim.location.to_geodetic())
         # uzstādām zvaigžņu sarakstu
-        try:
-            df = pd.read_csv(filename_stars, sep='\t', header=None)
-            # zvaigžņu nosaukumi pirmajā kolonā
-            starnames = df[0]
-            # atbilstošās pikseļu koordinātes otrajā un trešajā kolonā
-            pixels=np.array(df[[1,2]])
-        except:
-            starnames=[]
-            pixels=[]
-            
-        cldim.setStarReferences(starnames, pixels)
+        cldim.loadStarReferences(filename_stars)
         # izdrukājam zvaigžņu ekvatoriālās un pikseļu koordinātes pārbaudes nolūkos
         print(cldim.getSkyCoords())
         print(cldim.getPixelCoords())               
@@ -741,12 +713,99 @@ class CloudImage:
         self.starReferences = [StarReference(star, pixel) for star, pixel in zip(starList, pixelList)]
         for r in self.starReferences:
             r.getSkyCoord()
-    def saveStarReferences(self, filename):
+    
+    def addStarWithAltAz(self, name, pixelcoords, az_deg, alt_deg):
+        """
+        Add a star reference with Alt-Az coordinates.
         
-        df=pd.DataFrame({'name':[r.name for r in self.starReferences],
-                         'ix':[r.pixelcoords[0] for r in self.starReferences],
-                         'iy':[r.pixelcoords[1] for r in self.starReferences]})
-        df.to_csv(filename, sep='\t', header=None, index=False)
+        Args:
+            name: Star name or identifier
+            pixelcoords: [x, y] pixel coordinates in image
+            az_deg: Azimuth in degrees
+            alt_deg: Altitude in degrees
+        """
+        altaz_coord = astropy.coordinates.AltAz(
+            az=az_deg * u.deg,
+            alt=alt_deg * u.deg
+        )
+        star = StarReference(name, pixelcoords, altaz_coord)
+        self.starReferences.append(star)
+        return star
+    
+    def saveStarReferences(self, filename):
+        data = {
+            'name': [r.name for r in self.starReferences],
+            'ix': [r.pixelcoords[0] for r in self.starReferences],
+            'iy': [r.pixelcoords[1] for r in self.starReferences]
+        }
+        
+        # Check if any stars have Alt-Az coordinates
+        has_altaz = any(r.hasDirectAltAz() for r in self.starReferences)
+        
+        if has_altaz:
+            # Include Alt-Az coordinates and source information
+            data['az'] = [r.altaz_coord.az.deg if r.hasDirectAltAz() else np.nan 
+                         for r in self.starReferences]
+            data['alt'] = [r.altaz_coord.alt.deg if r.hasDirectAltAz() else np.nan 
+                          for r in self.starReferences]
+            data['coord_source'] = ['altaz' if r.hasDirectAltAz() else 'name' 
+                                   for r in self.starReferences]
+            # Save with headers for new format
+            df = pd.DataFrame(data)
+            df.to_csv(filename, sep='\t', header=True, index=False)
+        else:
+            # Save in old format for backward compatibility
+            df = pd.DataFrame(data)
+            df.to_csv(filename, sep='\t', header=None, index=False)
+    
+    def loadStarReferences(self, filename):
+        """
+        Load star references from file, supporting both old and new formats.
+        
+        Old format: tab-separated file with no headers (name, ix, iy)
+        New format: tab-separated file with headers including Alt-Az coordinates
+        """
+        try:
+            # First try to read with headers (new format)
+            df = pd.read_csv(filename, sep='\t')
+            
+            if 'name' in df.columns:
+                # New format with headers
+                self.starReferences = []
+                for _, row in df.iterrows():
+                    altaz_coord = None
+                    
+                    # Check if we have Alt-Az coordinates
+                    if 'az' in row and 'alt' in row and not pd.isna(row['az']) and not pd.isna(row['alt']):
+                        altaz_coord = astropy.coordinates.AltAz(
+                            az=row['az'] * u.deg,
+                            alt=row['alt'] * u.deg
+                        )
+                    
+                    star = StarReference(row['name'], [row['ix'], row['iy']], altaz_coord)
+                    self.starReferences.append(star)
+                
+                # Resolve RA/DEC coordinates for stars that don't have Alt-Az
+                for star in self.starReferences:
+                    if not star.hasDirectAltAz():
+                        star.getSkyCoord()
+            else:
+                # Old format without headers - assume columns are name, ix, iy
+                starnames = df[0]
+                pixels = np.array(df[[1,2]])
+                self.setStarReferences(starnames, pixels)
+                
+        except Exception as e:
+            # Fallback: try old format without headers
+            try:
+                df = pd.read_csv(filename, sep='\t', header=None)
+                starnames = df[0]
+                pixels = np.array(df[[1,2]])
+                self.setStarReferences(starnames, pixels)
+            except:
+                # Empty star list if file can't be read
+                self.starReferences = []
+                print(f"Could not load star references from {filename}: {e}")
         
     def getPixelCoords(self):
         return np.array([r.pixelcoords for r in self.starReferences])
@@ -851,12 +910,16 @@ class CloudImage:
         return direction
 
     def get_stars_enu_unit_coords(self):
-        skycoords = self.getSkyCoords()
-        if len(skycoords)>0:
-            stars_altaz = skycoords.transform_to(self.altaz)
-            enu_unit_coords = pymap3d.aer2enu(stars_altaz.az.value, stars_altaz.alt.value,1)
-            enu_unit_coords=np.array(enu_unit_coords).T
-            return enu_unit_coords
+        enu_coords = []
+        
+        for star in self.starReferences:
+            # Try to get ENU coordinates from each star
+            enu = star.getENUUnitVector(self.altaz)
+            if enu is not None:
+                enu_coords.append(enu)
+        
+        if enu_coords:
+            return np.array(enu_coords)
         else:
             return np.array([])
 class Reprojector_to_Camera:
