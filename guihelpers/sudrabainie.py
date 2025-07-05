@@ -61,6 +61,8 @@ class MainW (QMainWindow, Ui_MainWindow):
             self.DigitizeControlPointsClick)
         self.actionIelas_t_kontrolpunktus.triggered.connect(
             self.LoadControlPoints)
+        self.actionSaglab_t_augstumu_punktus_CSV.triggered.connect(
+            self.SaveHeightPointsCSV)
         self.actionKontrolpunktu_augstumus.triggered.connect(
             self.DrawControlPointHeights)
         self.actionIzveidot_augstumu_karti.triggered.connect(
@@ -120,6 +122,7 @@ class MainW (QMainWindow, Ui_MainWindow):
             self.cloudimage is not None and self.cloudimage2 is not None)
         self.actionIelas_t_kontrolpunktus.setEnabled(
             self.cloudimage is not None and self.cloudimage2 is not None)
+        self.actionSaglab_t_augstumu_punktus_CSV.setEnabled(self.cpair is not None)
         self.actionKontrolpunktu_augstumus.setEnabled(self.cpair is not None)
         self.actionIzveidot_augstumu_karti.setEnabled(self.cpair is not None)
         self.actionIelas_t_augstumu_karti.setEnabled(
@@ -729,6 +732,41 @@ class MainW (QMainWindow, Ui_MainWindow):
                 self.cpair.LoadCorrespondances(matchfile)
                 self.DrawImage(otrs=True, kontrolpunkti=True)
         self.update_ui_state()
+
+    @handle_exceptions(method_name="Saving height points to CSV")
+    def SaveHeightPointsCSV(self):
+        if self.cpair is not None:
+            # Calculate height points
+            llh, rayminimaldistance, z_intrinsic_error, valid = self.cpair.GetHeightPoints(
+                *self.cpair.correspondances)
+            
+            # Create default filename
+            csvfile = os.path.splitext(self.cloudimage.filename)[0] + '_heights.csv'
+            csvfile = gui_save_fname(
+                directory=csvfile,
+                caption='Augstumu punktu CSV fails',
+                filter='(*.csv)')
+            
+            if csvfile != '':
+                import pandas as pd
+                
+                # Create DataFrame
+                df = pd.DataFrame({
+                    'Point_ID': range(1, len(llh[0]) + 1),
+                    'Latitude': llh[0],
+                    'Longitude': llh[1],
+                    'Height_km': llh[2] / 1000.0,
+                    'Height_m': llh[2],
+                    'Ray_Distance_m': rayminimaldistance,
+                    'Z_Error_m': z_intrinsic_error,
+                    'Valid': valid
+                })
+                
+                # Save to CSV
+                df.to_csv(csvfile, index=False, float_format='%.6f')
+                
+                print(f'Height points saved to: {csvfile}')
+                print(f'Total points: {len(llh[0])}, Valid points: {sum(valid)}')
 
     @handle_exceptions(method_name="Plotting match points")
     def plot_matches(self, ax, pairNo):

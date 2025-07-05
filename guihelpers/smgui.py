@@ -130,6 +130,9 @@ class Ui_MainWindow(object):
         self.actionMainit_att_lu = QtWidgets.QAction(MainWindow)
         self.actionMainit_att_lu.setEnabled(False)
         self.actionMainit_att_lu.setObjectName("actionMainit_att_lu")
+        self.actionSaglab_t_augstumu_punktus_CSV = QtWidgets.QAction(MainWindow)
+        self.actionSaglab_t_augstumu_punktus_CSV.setEnabled(False)
+        self.actionSaglab_t_augstumu_punktus_CSV.setObjectName("actionSaglab_t_augstumu_punktus_CSV")
         self.menuFails.addAction(self.actionIelas_t_att_lu)
         self.menuFails.addAction(self.actionMainit_att_lu)
         self.menuFails.addSeparator()
@@ -138,6 +141,7 @@ class Ui_MainWindow(object):
         self.menuFails.addAction(self.actionIelas_t_otro_projektu)
         self.menuFails.addSeparator()
         self.menuFails.addAction(self.actionIelas_t_kontrolpunktus)
+        self.menuFails.addAction(self.actionSaglab_t_augstumu_punktus_CSV)
         self.menuFails.addSeparator()
         self.menuFails.addAction(self.actionIelas_t_augstumu_karti)
         self.menuFails.addAction(self.actionSaglab_t_augstumu_karti)
@@ -217,4 +221,5 @@ class Ui_MainWindow(object):
         self.actionUzst_d_t_platumu_garumu_augstumu.setText(_translate("MainWindow", "Uzstādīt platumu, garumu, augstumu"))
         self.actionEpil_niju_augstums.setText(_translate("MainWindow", "Epilīniju augstums"))
         self.actionMainit_att_lu.setText(_translate("MainWindow", "Mainīt attēlu"))
+        self.actionSaglab_t_augstumu_punktus_CSV.setText(_translate("MainWindow", "Saglabāt augstumu punktus CSV"))
 from mplwidget import MplWidget

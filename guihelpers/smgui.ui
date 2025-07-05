@@ -64,6 +64,7 @@
     <addaction name="actionIelas_t_otro_projektu"/>
     <addaction name="separator"/>
     <addaction name="actionIelas_t_kontrolpunktus"/>
+    <addaction name="actionSaglab_t_augstumu_punktus_CSV"/>
     <addaction name="separator"/>
     <addaction name="actionIelas_t_augstumu_karti"/>
     <addaction name="actionSaglab_t_augstumu_karti"/>
@@ -333,6 +334,14 @@
    </property>
    <property name="text">
     <string>Mainīt attēlu</string>
+   </property>
+  </action>
+  <action name="actionSaglab_t_augstumu_punktus_CSV">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Saglabāt augstumu punktus CSV</string>
    </property>
   </action>
  </widget>
