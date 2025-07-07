@@ -35,7 +35,7 @@ class StarDigitizer:
     Provides enhanced star input, coordinate validation, and PyQt5 context menus.
     """
     
-    def __init__(self, ax, cloudimage, main_window=None):
+    def __init__(self, ax, cloudimage, main_window=None, centroid_box_size=50):
         """
         Initialize the star digitizer.
         
@@ -43,9 +43,11 @@ class StarDigitizer:
             ax: matplotlib axes object
             cloudimage: CloudImage object containing star references
             main_window: main window reference for compatibility
+            centroid_box_size: size of the box around original position for centroiding (default: 10 pixels)
         """
         self.cloudimage = cloudimage
         self.main_window = main_window
+        self.centroid_box_size = centroid_box_size
         
         # Create the underlying point digitizer
         self.point_digitizer = MplPointDigitizer(ax)
@@ -68,6 +70,7 @@ class StarDigitizer:
         self.point_digitizer.set_callback('on_context_menu', self._show_star_context_menu)
         self.point_digitizer.set_callback('on_point_selected', self._on_star_selected)
         self.point_digitizer.set_callback('on_digitization_stop', self._save_stars)
+        self.point_digitizer.set_callback('get_precise_position', self._get_precise_position)
     
     def start_digitization(self):
         """Start star digitization mode."""
@@ -355,3 +358,157 @@ class StarDigitizer:
                 self.cloudimage.saveStarReferences(filename_stars)
                 print(f"Saved {len(self.cloudimage.starReferences)} stars to {filename_stars}")
         self.main_window.DrawImage()
+        
+    def _get_precise_position(self, x, y, ctrl_pressed):
+        """
+        Get precise position using PSF fitting if ctrl_pressed is True.
+        
+        Args:
+            x, y: Original coordinates
+            ctrl_pressed: Whether Ctrl key was pressed for precise positioning
+            
+        Returns:
+            (new_x, new_y) if precise positioning is requested, None otherwise
+        """
+        if not ctrl_pressed:
+            return None
+                       
+        # Use PSF fitting for precise positioning
+        return self._psf_fit_position(x, y)
+    
+    def _centroid_position(self, x, y):
+        """
+        Calculate precise position using centroiding algorithm.
+        
+        Args:
+            x, y: Original coordinates (float)
+            
+        Returns:
+            (new_x, new_y): Precise coordinates using centroiding
+        """
+        if self.cloudimage is None or self.cloudimage.imagearray is None:
+            return x, y
+            
+        subimage, x_min, y_min = self._get_subimage(x,y,self.cloudimage.imagearray)   
+
+        # Calculate centroid
+        if subimage.size == 0:
+            return x, y
+            
+        # Create coordinate grids
+        y_coords, x_coords = np.mgrid[0:subimage.shape[0], 0:subimage.shape[1]]
+        
+        # Calculate weighted centroid
+        total_intensity = np.sum(subimage)
+        if total_intensity == 0:
+            return x, y
+            
+        centroid_x = np.sum(x_coords * subimage) / total_intensity + x_min
+        centroid_y = np.sum(y_coords * subimage) / total_intensity + y_min
+
+        #print(f'Centroid {centroid_x} {centroid_y}, {x} {y}')
+        #self.point_digitizer.ax.plot([x_min,x_max,x_max,x_min],[y_min,y_min,y_max,y_max], lw=2, color='red')
+        #print(f'{total_intensity=} {image.shape=} {y_coords=} {x_coords=}')
+        #print(f'{subimage=}')
+        #print(f'{subimage.min()=} {subimage.max()=}')
+        #np.save('subimage.npy',subimage)
+        return centroid_x, centroid_y
+    
+    def _get_subimage(self, x, y, image):
+        height, width = image.shape[:2]
+        
+        # Convert to integer pixel coordinates
+        center_x = int(round(x))
+        center_y = int(round(y))
+        
+        # Define the box around the original position
+        half_box = self.centroid_box_size // 2
+        
+        # Calculate box boundaries with image bounds checking
+        x_min = max(0, center_x - half_box)
+        x_max = min(width, center_x + half_box + 1)
+        y_min = max(0, center_y - half_box)
+        y_max = min(height, center_y + half_box + 1)
+        
+        # Extract the subimage
+        if len(image.shape) == 3:
+            # Color image - use luminance
+            subimage = image[y_min:y_max, x_min:x_max]
+            # Convert to grayscale using luminance formula
+            subimage = 0.299 * subimage[:,:,0] + 0.587 * subimage[:,:,1] + 0.114 * subimage[:,:,2]
+        else:
+            # Grayscale image
+            subimage = image[y_min:y_max, x_min:x_max].astype(float)
+        return subimage, x_min, y_min
+
+    def _psf_fit_position(self, x, y, sigma=3, fit_shape=(7,7)):
+        """
+        Calculate precise position using 2D Gaussian PSF fitting.
+        
+        Args:
+            x, y: Original coordinates (float)
+            sigma: Background threshold in standard deviations (default: 3)
+            
+        Returns:
+            (new_x, new_y): Precise coordinates using PSF fitting, or original (x, y) if fitting fails
+        """
+        if self.cloudimage is None or self.cloudimage.imagearray is None:
+            return x, y
+            
+        try:
+            import photutils
+            import photutils.psf
+        except ImportError:
+            print("photutils not available, falling back to original coordinates")
+            return x, y
+        
+        subimage, x_min, y_min = self._get_subimage(x,y,self.cloudimage.imagearray)   
+        
+        # Check if subimage is valid
+        if subimage.size == 0:
+            return x, y
+            
+        try:
+            # Background subtraction using your method
+            s = subimage.std()
+            background = subimage.mean() + sigma * s
+            subimage = subimage - background
+            subimage[subimage < 0] = 0.0
+            
+            # Check if there's any signal left after background subtraction
+            if subimage.max() == 0:
+                return x, y
+            
+            # Fit shape calculation
+            #fit_shape = 2 * ((np.array(subimage.shape) + 1) // 2) - 1
+                        
+            # Perform PSF fitting
+            fit_result = photutils.psf.fit_2dgaussian(subimage, fit_shape=fit_shape)
+            
+            # Check if fitting was successful
+            if fit_result is None or not hasattr(fit_result, 'results'):
+                return x, y
+                
+            result = fit_result.results
+            result.sort('flux_fit')
+            result = result[-1]
+            
+            # Extract fitted coordinates
+            fit_x = result['x_fit']
+            fit_y = result['y_fit']
+            
+            # Check if fitted coordinates are reasonable (within the subimage)
+            if (0 <= fit_x < subimage.shape[1] and 
+                0 <= fit_y < subimage.shape[0]):
+                
+                # Convert back to image coordinates
+                precise_x = x_min + fit_x
+                precise_y = y_min + fit_y
+                
+                return precise_x, precise_y
+            else:
+                return x, y
+                
+        except Exception as e:
+            print(f"PSF fitting failed: {e}")
+            return x, y

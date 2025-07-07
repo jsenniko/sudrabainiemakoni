@@ -37,6 +37,7 @@ class MplPointDigitizer:
             'on_digitization_stop': None,  # Called when digitization stops
             'get_point_name': None,      # Called to get name for new point
             'get_point_data': None,      # Called to get data for new point
+            'get_precise_position': None, # Called to get precise position (x, y, ctrl_pressed) -> (new_x, new_y) or None
         }
         
         # Default context menu settings
@@ -421,8 +422,11 @@ class MplPointDigitizer:
             name = 'New Point'  # Default name
         return name, data
     
-    def _handle_left_click(self, _x, _y, event):
+    def _handle_left_click(self, x, y, event):
         #print(f'left click {event}')
+        # Check for Ctrl key modifier in mouse events
+        ctrl_pressed = hasattr(event, 'modifiers') and 'ctrl' in event.modifiers
+
         point_index = self._find_point_at_position(event)
         if point_index is not None:
             # Click on existing star
@@ -440,7 +444,14 @@ class MplPointDigitizer:
             name, data = self._get_name_and_data(event)
             valid = data is not None or self._get_callback('get_point_data') is None
             if valid:
-                point_index = self.add_point(event.xdata, event.ydata, name, data = data)
+                # Get precise position if callback is available
+                precise_pos = self._call_callback('get_precise_position', event.xdata, event.ydata, ctrl_pressed)
+                if precise_pos is not None:
+                    final_x, final_y = precise_pos
+                else:
+                    final_x, final_y = event.xdata, event.ydata
+                    
+                point_index = self.add_point(final_x, final_y, name, data = data)
                 if point_index is not None:
                     # auto-select after adding                
                     self.show_selection(point_index)
@@ -484,9 +495,19 @@ class MplPointDigitizer:
             if event.inaxes and event.xdata is not None and event.ydata is not None:
                 self.update_point_position(self._dragging_point, event.xdata, event.ydata)
     
-    def _on_mouse_release(self, _event):
+    def _on_mouse_release(self, event):
         """Handle mouse release to end drag."""
         if self._dragging_point is not None:
+            # Check for Ctrl key modifier in mouse events
+            ctrl_pressed = hasattr(event, 'modifiers') and 'ctrl' in event.modifiers
+            
+            # Get precise position if callback is available
+            point = self._points[self._dragging_point]
+            precise_pos = self._call_callback('get_precise_position', point['x'], point['y'], ctrl_pressed)
+            if precise_pos is not None:
+                final_x, final_y = precise_pos
+                self.update_point_position(self._dragging_point, final_x, final_y)
+            
             self._dragging_point = None
             self._drag_start_pos = None
     
