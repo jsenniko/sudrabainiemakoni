@@ -5,12 +5,14 @@ from PyQt5.QtWidgets import QMainWindow, QApplication, QFileDialog
 from PyQt5 import QtGui, QtCore
 #from matplotlib.backend_tools import Cursors
 import tilemapbase
-from sudrabainiemakoni.cloudimage import CloudImage, StarReference, WebMercatorImage, CloudImagePair, HeightMap
+from sudrabainiemakoni.cloudimage import CloudImage, WebMercatorImage, CloudImagePair, HeightMap
+from sudrabainiemakoni.starreference import StarReference
 from sudrabainiemakoni import plots, utils
 from smgui import Ui_MainWindow
 from qthelper import gui_fname, gui_save_fname, gui_string
 import smhelper
 from exceptions import handle_exceptions
+from star_digitizer import StarDigitizer
 
 
 class Stream(QtCore.QObject):
@@ -102,6 +104,9 @@ class MainW (QMainWindow, Ui_MainWindow):
         self.isDigitizeControlPoints = None
         self.measure_events = None
         self.z1, self.z2 = 75, 90
+        
+        # Initialize star digitizer (will be created when needed)
+        self.star_digitizer = None
 
 
     def update_ui_state(self):
@@ -172,6 +177,8 @@ class MainW (QMainWindow, Ui_MainWindow):
         lat, lon, height = smhelper.check_latlon_file(filename_jpg)
         self.cloudimage = CloudImage.from_files(
             case_id, filename_jpg, filename_stars, lat, lon, height=height)
+        # Reset digitization state and update star digitizer with new cloudimage
+        self.isDigitizeStars = None
         self.DrawImage()
         self.update_ui_state()
 
@@ -245,6 +252,8 @@ class MainW (QMainWindow, Ui_MainWindow):
             self.cpair = None
             self.console.clear()
             self.cloudimage = CloudImage.load(projfile)
+            # Reset digitization state and update star digitizer with new cloudimage
+            self.isDigitizeStars = None
             print(f'Loaded project file {projfile}')
             print(self.cloudimage)
             self.DrawImage()
@@ -321,7 +330,7 @@ class MainW (QMainWindow, Ui_MainWindow):
         self.DrawImage(otrs=self.cloudimage2 is not None)
 
     @handle_exceptions(method_name="Drawing image")
-    def DrawImage(self, otrs=False, kontrolpunkti=False):
+    def DrawImage(self, otrs=False, kontrolpunkti=False, plot_stars = True):
         self.disconnect_measurement()
         if self.cloudimage is not None:
             if otrs and self.cloudimage2 is not None:
@@ -336,82 +345,40 @@ class MainW (QMainWindow, Ui_MainWindow):
             if kontrolpunkti:
                 self.plot_matches(ax, 0)
             else:
-                plots.PlotStars(self.cloudimage, ax)
+                if plot_stars:
+                    plots.PlotStars(self.cloudimage, ax)
             if otrs and self.cloudimage2 is not None:
                 ax2.imshow(self.cloudimage2.imagearray)
                 if kontrolpunkti:
                     self.plot_matches(ax2, 1)
                 else:
-                    plots.PlotStars(self.cloudimage2, ax2)
+                    if plot_stars:
+                        plots.PlotStars(self.cloudimage2, ax2)
 
             self.MplWidget1.canvas.draw()
+            return ax
             
-    @handle_exceptions(method_name="Star digitization click")
-    def onclick_digitize_stars(self, event):
-        # https://stackoverflow.com/a/64486726
-        ax = event.inaxes
-        if ax is None:
-            return
-        # print(event)
-        try:  # use try/except in case we are not using Qt backend
-            # 0 is the arrow, which means we are not zooming or panning.
-            zooming_panning = (
-                ax.figure.canvas.cursor().shape() not in [0, 13])
-        except:
-            zooming_panning = False
-        if zooming_panning:
-            #print("Zooming or panning")
-            return
-        #print('you pressed', event.key, event.xdata, event.ydata)
-        if event.button == 1:
-            X_coordinate = event.xdata
-            Y_coordinate = event.ydata
-            sname = gui_string(caption='Ievadi zvaigznes vārdu')
-            if sname is not None:
-                ax.plot(X_coordinate, Y_coordinate,
-                        marker='o', fillstyle='none')
-                ax.annotate(sname, xy=(X_coordinate, Y_coordinate), xytext=(
-                    3, 3), color='#AAFFAA', fontsize=16, textcoords='offset pixels')
-                # starlist.append((sname,X_coordinate,Y_coordinate))
-                ax.figure.canvas.draw()
-
-                cldim = self.cloudimage
-                sr = StarReference(sname, [X_coordinate, Y_coordinate])
-                Ok = False
-                try:
-                    sr.getSkyCoord()
-                    Ok = True
-                except Exception as e:
-                    print(e)
-                    Ok = gui_string(
-                        caption='Neatpazīst zvaigzni, vai ievadīt?') is not None
-                if Ok:
-                    cldim.starReferences.append(sr)
-
-        else:
-            self.StopDigitizeStars()
+    # onclick_digitize_stars method now handled by StarDigitizer
 
     @handle_exceptions(method_name="Starting star digitization")
     def StartDigitizeStars(self):
-        if self.isDigitizeStars is None:
-            self.MplWidget1.canvas.fig.set_facecolor('mistyrose')
-            self.DrawImage()
-            self.isDigitizeStars = self.MplWidget1.canvas.mpl_connect(
-                'button_press_event', self.onclick_digitize_stars)
+        if self.isDigitizeStars is None:     
+            self.DrawImage(plot_stars = False)       
+            # Get current axes from canvas
+            ax = self.MplWidget1.canvas.ax
+            if hasattr(ax, '__len__'):  # Multiple axes
+                ax = ax[0]  # Use first axis
+            
+            # Create star digitizer with current axes and cloudimage
+            self.star_digitizer = StarDigitizer(ax, self.cloudimage, self)
+            self.star_digitizer.start_digitization()
+            self.isDigitizeStars = True  # Keep for compatibility
 
     @handle_exceptions(method_name="Stopping star digitization")
     def StopDigitizeStars(self):
-        if self.isDigitizeStars is not None:
-            self.MplWidget1.canvas.mpl_disconnect(self.isDigitizeStars)
-            filename_stars = os.path.splitext(self.cloudimage.filename)[0]+'_zvaigznes.txt'
-            filename_stars = gui_save_fname(
-                directory=filename_stars,
-                caption='Zvaigžņu fails',
-                filter='(*.txt)')
-            if filename_stars != '':            
-                self.cloudimage.saveStarReferences(filename_stars)
-            self.MplWidget1.canvas.fig.set_facecolor('white')
-            self.DrawImage()
+        if self.isDigitizeStars is not None and self.star_digitizer is not None:
+            self.star_digitizer.stop_digitization()
+            self.star_digitizer = None
         self.isDigitizeStars = None
 
     @handle_exceptions(method_name="Star digitization button click")
@@ -916,6 +883,27 @@ class MainW (QMainWindow, Ui_MainWindow):
                     from sudrabainiemakoni import savekml
                     savekml.mapOverlay(wm, img, self.projHeight, projfile, saveimage=False, cloudimage=self.cloudimage)
                 print('Fails saglabāts:', projfile)
+
+    @handle_exceptions(method_name="Adding star with Alt-Az coordinates")
+    def addStarWithAltAz(self, name, x_coord, y_coord, az_deg, alt_deg):
+        """
+        Add a star reference with Alt-Az coordinates.
+        This is useful when you know the Alt-Az coordinates of a reference point in the image.
+        
+        Args:
+            name: Star name or identifier
+            x_coord: X pixel coordinate
+            y_coord: Y pixel coordinate  
+            az_deg: Azimuth in degrees
+            alt_deg: Altitude in degrees
+        """
+        if self.cloudimage is not None:
+            star = self.cloudimage.addStarWithAltAz(name, [x_coord, y_coord], az_deg, alt_deg)
+            print(f"Added star '{name}' with Alt-Az coordinates: {az_deg:.2f}°, {alt_deg:.2f}°")
+            return star
+        else:
+            print("No cloud image loaded")
+            return None
 
 
 def excepthook(exc_type, exc_value, exc_tb):

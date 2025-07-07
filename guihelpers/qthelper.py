@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QFileDialog, QInputDialog
+from PyQt5.QtWidgets import QFileDialog, QInputDialog, QMessageBox
 import os
 
 class FileDialogManager:
@@ -76,3 +76,10 @@ def gui_dir(directory=None, caption=""):
 def gui_string(text="", name="", caption=""):
     res, Ok = QInputDialog.getText(None, name, caption, text=text)
     return res if Ok else None
+
+def gui_confirm(caption="Confirm", title="Confirmation"):
+    """Show a confirmation dialog with Yes/No buttons."""
+    reply = QMessageBox.question(None, title, caption, 
+                                QMessageBox.Yes | QMessageBox.No, 
+                                QMessageBox.No)
+    return reply == QMessageBox.Yes
