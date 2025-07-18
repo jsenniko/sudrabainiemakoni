@@ -14,7 +14,8 @@ setup(name='sudrabainiemakoni',
 		'astropy<6','exifread','cameratransform==1.1','pymap3d','tilemapbase',
 		'opencv-python==4.5.5.64',
 		'pykrige',
-        'simplekml'],
+        'simplekml',
+        'rasterio'],
 	packages=['sudrabainiemakoni'],
 	zip_safe=False)
 

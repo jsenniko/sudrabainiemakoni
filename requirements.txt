@@ -12,3 +12,4 @@ tilemapbase
 opencv-python==4.5.5.64
 pykrige
 simplekml
+rasterio

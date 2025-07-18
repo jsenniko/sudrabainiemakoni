@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import camera
 import pymap3d
 import numpy as np
+from sudrabainiemakoni import geoutils
 class ProjectionImage(ABC):
     def __init__(self, cloudImage, lonmin, lonmax, latmin, latmax, pixel_per_km):
         self.lonmin = lonmin
@@ -108,10 +109,95 @@ class ProjectionImage(ABC):
         import skimage
         img = self.Fill_projectedImageMasked()
         skimage.io.imsave(filename, img)
+    
+    def prepare_inverse_reproject_from_camera(self, height_km):
+        i_grid, j_grid = self.cloudImage.imageArrayGrid()
+        grid_points=np.array([i_grid.flatten(), j_grid.flatten()]).T
+        cam = self.cloudImage.camera.camera_ecef
+        center, rays = cam.getRay(grid_points, normed=True)
+        ray_coords=rays.T
+        xyz = geoutils.los_to_constant_height_surface(*center,*ray_coords, height_km*1000)
+        lat, lon, h = pymap3d.ecef2geodetic(*xyz)
+        i_pxls, j_pxls = self.GetPixelCoords_LatLon(lat, lon)
+        i_pxls = np.reshape(i_pxls, (i_grid.shape[0],i_grid.shape[1]))
+        j_pxls = np.reshape(j_pxls, (i_grid.shape[0],i_grid.shape[1]))
+        maskpix = ~np.isnan(i_pxls) & ~np.isnan(j_pxls)
+        i_pxls=np.round(i_pxls).astype('int')
+        j_pxls=np.round(j_pxls).astype('int')
+        maskpix = maskpix &  (i_pxls>=0) &  (i_pxls<self.npix_x)  & (j_pxls>=0) & (j_pxls<self.npix_y)
+        self.inv_i_pxls = i_pxls
+        self.inv_j_pxls = j_pxls
+        self.inv_maskpix = maskpix
+
+    def Fill_inverse_projected_image(self, projected_image):
+        i_grid, j_grid = self.cloudImage.imageArrayGrid()
+        if len(projected_image.shape)==2:
+            inverse_projected_image=np.zeros(shape=(self.cloudImage.imagearray.shape[0], self.cloudImage.imagearray.shape[1]), dtype=projected_image.dtype)
+        else:
+            inverse_projected_image=np.zeros(shape=(self.cloudImage.imagearray.shape[0], self.cloudImage.imagearray.shape[1], projected_image.shape[2]), dtype=projected_image.dtype)
+        inverse_projected_image[j_grid[self.inv_maskpix], i_grid[self.inv_maskpix]]=projected_image[self.inv_j_pxls[self.inv_maskpix], self.inv_i_pxls[self.inv_maskpix]]
+        return inverse_projected_image
+
+    def PrepareHeightMap(self, point_longitudes, point_latitudes, point_heights):
+        import pykrige
+        assert(len(point_longitudes)==len(point_longitudes))
+        assert(len(point_longitudes)==len(point_heights))
+        if len(point_longitudes)>=3:
+            x, y = self.latlon_to_xy(point_latitudes, point_longitudes)
+            OK = pykrige.ok.OrdinaryKriging(
+                x, y, point_heights,
+                variogram_model="linear",
+                verbose=False,
+                enable_plotting=False,
+                variogram_parameters ={'slope':1.0, 'nugget': 0.0}
+            )
+            window=10
+            krigx, krigy = np.append(self.x_arr[::window],self.x_arr[-1]), np.append(self.y_arr[::window],self.y_arr[-1])
+            krigx_grid, krigy_grid = np.meshgrid(krigx, krigy)
+            z, ss = OK.execute("grid", krigx, krigy)
+            import scipy.interpolate
+            heightgrid=scipy.interpolate.griddata((krigx_grid.flatten(), krigy_grid.flatten() ), z.flatten(),
+                                    (self.x_grid, self.y_grid),method='cubic')
+        else:
+            zave = point_heights.mean()
+            heightgrid=np.zeros_like(self.x_grid);
+            heightgrid[:,:]=zave
+        return heightgrid
+
+    # Serialization support
+    fields = {"lonmin","lonmax","latmin","latmax","pixel_per_km","xmin", "xmax", "ymin", "ymax", "npix_x", "npix_y"}
+    
+    def __getstate__(self):
+        state = self.__dict__
+        return {x: state[x] for x in self.fields}
+    
+    def __setstate__(self, state):
+        for x in self.fields:
+            setattr(self, x, state[x])
+        self.initialize()
+
+    def __str__(self):
+        return {k:v for k, v in self.__dict__.items() if k in self.fields}.__str__()
+    
+    def __repr__(self):
+        return {k:v for k, v in self.__dict__.items() if k in self.fields}.__repr__()
+
+    def save(self, filename):
+        import pickle
+        with open(filename, 'wb') as f:
+            pickle.dump(self, f)
+    
+    @classmethod
+    def load(cls, filename, cloudImage = None):
+        import pickle
+        with open(filename, 'rb') as f:
+            d = pickle.load(f)
+        d.cloudImage = cloudImage
+        return d
 import pyproj
 class ProjectionImagePyproj(ProjectionImage):
-    Transformer_LATLON_XY = pyproj. Transformer.from_crs("EPSG:4326", "EPSG:3857")
-    Transformer_XY_LATLON =TRAN_3857_TO_4326 = pyproj. Transformer.from_crs("EPSG:3857","EPSG:4326")    
+    Transformer_LATLON_XY = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:3857")
+    Transformer_XY_LATLON = pyproj.Transformer.from_crs("EPSG:3857","EPSG:4326")    
     def __init__(self, proj, cloudImage, lonmin, lonmax, latmin, latmax, pixel_per_km):
         self.set_projection(proj)
         super().__init__(cloudImage, lonmin, lonmax, latmin, latmax, pixel_per_km)
@@ -128,5 +214,93 @@ class ProjectionImagePyproj(ProjectionImage):
         if isinstance(proj, str):
             proj = pyproj.Proj(proj)
         self.proj = proj
-        self.Transformer_LATLON_XY = pyproj. Transformer.from_proj("EPSG:4326", proj)
-        self.Transformer_XY_LATLON = pyproj. Transformer.from_proj(proj, "EPSG:4326")
+        self.Transformer_LATLON_XY = pyproj.Transformer.from_proj("EPSG:4326", proj)
+        self.Transformer_XY_LATLON = pyproj.Transformer.from_proj(proj, "EPSG:4326")
+
+    def SaveGeoTiff(self, result2D, filename):
+        assert((result2D.shape[0]==self.npix_y) & (result2D.shape[1]==self.npix_x))
+        xres = (self.xmax - self.xmin) / float(self.npix_x)
+        yres = (self.ymax - self.ymin) / float(self.npix_y)
+        geotransform = (self.xmin, xres, 0, self.ymax, 0, -yres)
+        from osgeo import gdal
+        from osgeo import osr
+        dst_ds = gdal.GetDriverByName('GTiff').Create(filename, self.npix_x, self.npix_y, 1, gdal.GDT_Float32)
+        dst_ds.SetGeoTransform(geotransform)
+        srs = osr.SpatialReference()
+        # Extract EPSG code from projection
+        epsg_code = self.proj.crs.to_epsg()
+        if epsg_code:
+            srs.ImportFromEPSG(epsg_code)
+        else:
+            srs.ImportFromProj4(self.proj.crs.to_proj4())
+        dst_ds.SetProjection(srs.ExportToWkt())
+        dst_ds.GetRasterBand(1).WriteArray(result2D)
+        dst_ds.FlushCache()
+        dst_ds = None
+
+    def SaveGeoTiffRasterio(self, image_data, filename, compress='lzw'):
+        """
+        Save image data as GeoTIFF using rasterio with proper CRS information.
+        
+        Args:
+            image_data: numpy array with shape (height, width) or (height, width, bands)
+            filename: output filename
+            compress: compression method ('lzw', 'jpeg', 'deflate', or None)
+        """
+        try:
+            import rasterio
+            from rasterio.transform import from_bounds
+            from rasterio.crs import CRS
+        except ImportError:
+            raise ImportError("rasterio is required for SaveGeoTiffRasterio. Install with: pip install rasterio")
+        
+        # Validate image dimensions
+        if len(image_data.shape) == 2:
+            height, width = image_data.shape
+            count = 1
+        elif len(image_data.shape) == 3:
+            height, width, count = image_data.shape
+        else:
+            raise ValueError("Image data must be 2D or 3D numpy array")
+        
+        assert height == self.npix_y and width == self.npix_x, \
+            f"Image dimensions ({height}, {width}) don't match projection dimensions ({self.npix_y}, {self.npix_x})"
+        
+        # Create transform from bounds
+        transform = from_bounds(self.xmin, self.ymin, self.xmax, self.ymax, self.npix_x, self.npix_y)
+        
+        # Get CRS from projection
+        try:
+            epsg_code = self.proj.crs.to_epsg()
+            if epsg_code:
+                crs = CRS.from_epsg(epsg_code)
+            else:
+                crs = CRS.from_proj4(self.proj.crs.to_proj4())
+        except:
+            # Fallback to string representation
+            crs = CRS.from_string(str(self.proj.crs))
+        
+        # Set up rasterio profile
+        profile = {
+            'driver': 'GTiff',
+            'height': height,
+            'width': width,
+            'count': count,
+            'dtype': image_data.dtype,
+            'crs': crs,
+            'transform': transform,
+            'tiled': True,
+            'blockxsize': 256,
+            'blockysize': 256,
+        }
+        
+        if compress:
+            profile['compress'] = compress
+        
+        # Save the GeoTIFF
+        with rasterio.open(filename, 'w', **profile) as dst:
+            if count == 1:
+                dst.write(image_data, 1)
+            else:
+                for i in range(count):
+                    dst.write(image_data[:, :, i], i + 1)
