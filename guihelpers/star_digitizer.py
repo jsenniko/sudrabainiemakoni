@@ -144,11 +144,11 @@ class StarDigitizer:
     
     def _on_star_added(self, point_index, point):
         """Handle when a star is added to the digitizer."""
-        print('Star added')
         if self.cloudimage is not None:
             star_ref = point['data']
+            star_ref.pixelcoords = [point['x'], point['y']]
             # Add to star collection if not already there
-            print(star_ref)
+            print(f'Star added at pixel coords {point}, data: {star_ref}')
             if star_ref not in self.cloudimage.starReferences:
                 self.cloudimage.starReferences.append(star_ref)
     
@@ -365,12 +365,12 @@ class StarDigitizer:
         
         Args:
             x, y: Original coordinates
-            ctrl_pressed: Whether Ctrl key was pressed for precise positioning
+            ctrl_pressed: If Ctrl key was not pressed: Automatic positioning to star position, else exact click positioning
             
         Returns:
-            (new_x, new_y) if precise positioning is requested, None otherwise
+            (new_x, new_y) if automatic positioning is requested, None otherwise
         """
-        if not ctrl_pressed:
+        if ctrl_pressed:
             return None
                        
         # Use PSF fitting for precise positioning

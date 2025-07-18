@@ -202,7 +202,7 @@ class MplPointDigitizer:
         }
         # Store both objects
         self._points.append(new_point)
-        
+        print(f'Added point {len(self._points)-1} at ({x}, {y}) with name "{name}" and data {data}')
         # Efficient redraw that preserves zoom
         self.ax.figure.canvas.draw()
         
@@ -446,11 +446,11 @@ class MplPointDigitizer:
             if valid:
                 # Get precise position if callback is available
                 precise_pos = self._call_callback('get_precise_position', event.xdata, event.ydata, ctrl_pressed)
+                print('Original position:', event.xdata, event.ydata,'Precise position:', precise_pos)
                 if precise_pos is not None:
                     final_x, final_y = precise_pos
                 else:
                     final_x, final_y = event.xdata, event.ydata
-                    
                 point_index = self.add_point(final_x, final_y, name, data = data)
                 if point_index is not None:
                     # auto-select after adding                
