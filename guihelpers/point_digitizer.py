@@ -186,15 +186,15 @@ class MplPointDigitizer:
         marker = ax.plot(x, y, marker='o', fillstyle='none')[0]
         return marker
 
-    def add_point(self, x, y, name, data = None):
+    def add_point(self, x, y, name, data=None, interactive=True):
         # Create marker (point)
         marker = self._draw_point(self.ax, x, y)
         # Create annotation (text label)
-        annotation = self._draw_annotation(self.ax, x,y,name)
+        annotation = self._draw_annotation(self.ax, x, y, name)
         
         new_point = {
-            'x':x,
-            'y':y,
+            'x': x,
+            'y': y,
             'name': name,
             'marker': marker,
             'annotation': annotation,
@@ -202,15 +202,22 @@ class MplPointDigitizer:
         }
         # Store both objects
         self._points.append(new_point)
-        print(f'Added point {len(self._points)-1} at ({x}, {y}) with name "{name}" and data {data}')
-        # Efficient redraw that preserves zoom
-        self.ax.figure.canvas.draw()
         
         point_index = len(self._points) - 1
-        # Call external callback
-        self._call_callback('on_point_added', point_index, new_point)
+        
+        # Only trigger callbacks for interactive operations
+        if interactive:
+            # Efficient redraw that preserves zoom
+            self.ax.figure.canvas.draw()
+            # Call external callback
+            self._call_callback('on_point_added', point_index, new_point)
         
         return point_index
+    
+    def batch_redraw(self):
+        """Single redraw after batch operations."""
+        self.ax.figure.canvas.draw()
+        
     def _index_valid(self, point_index):
         return (point_index>=0) and (point_index<len(self._points))
     
@@ -240,15 +247,16 @@ class MplPointDigitizer:
         
         # Call external callback
         self._call_callback('on_point_moved', point_index, object, old_x, old_y, new_x, new_y)
-    def update_name(self, point_index, new_name):
+    def update_name(self, point_index, new_name, redraw=True):
         if not self._index_valid(point_index):
             return
             
         object = self._points[point_index]
         object['annotation'].set_text(new_name)
         
-        # Efficient redraw that preserves zoom
-        self.ax.figure.canvas.draw()
+        # Conditional redraw that preserves zoom
+        if redraw:
+            self.ax.figure.canvas.draw()
     
     def remove_point(self, point_index):
         if not self._index_valid(point_index):
@@ -392,10 +400,16 @@ class MplPointDigitizer:
         if ax is None:
             return
             
+        
+        # Only handle events for our own axes
+        if ax is not self.ax:
+            return
+            
         # Check if we're zooming or panning - more robust detection
         zooming_panning = self._is_zooming_or_panning()
         if zooming_panning:
             return
+        
         
         if event.button == 1:  # Left click
             self._handle_left_click(event.xdata, event.ydata, event)
@@ -423,7 +437,6 @@ class MplPointDigitizer:
         return name, data
     
     def _handle_left_click(self, x, y, event):
-        #print(f'left click {event}')
         # Check for Ctrl key modifier in mouse events
         ctrl_pressed = hasattr(event, 'modifiers') and 'ctrl' in event.modifiers
 
@@ -443,10 +456,10 @@ class MplPointDigitizer:
             
             name, data = self._get_name_and_data(event)
             valid = data is not None or self._get_callback('get_point_data') is None
+            
             if valid:
                 # Get precise position if callback is available
                 precise_pos = self._call_callback('get_precise_position', event.xdata, event.ydata, ctrl_pressed)
-                print('Original position:', event.xdata, event.ydata,'Precise position:', precise_pos)
                 if precise_pos is not None:
                     final_x, final_y = precise_pos
                 else:

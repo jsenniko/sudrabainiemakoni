@@ -97,10 +97,13 @@ class StarDigitizer:
         # Clear existing points
         self.point_digitizer.clear_all_points()
         
-        # Add each star as a point
+        # Add each star as a point (non-interactive = loading from data)
         for star_ref in self.cloudimage.starReferences:
             x, y = star_ref.pixelcoords
-            self.point_digitizer.add_point(x, y, star_ref.name, data=star_ref)
+            self.point_digitizer.add_point(x, y, star_ref.name, data=star_ref, interactive=False)
+        
+        # Single redraw after loading all points
+        self.point_digitizer.batch_redraw()
     
     def _get_star_name(self, x, y):
         """Get star name from user input."""
@@ -143,14 +146,13 @@ class StarDigitizer:
         return None
     
     def _on_star_added(self, point_index, point):
-        """Handle when a star is added to the digitizer."""
+        """Handle when a star is added interactively by user."""
         if self.cloudimage is not None:
             star_ref = point['data']
             star_ref.pixelcoords = [point['x'], point['y']]
-            # Add to star collection if not already there
-            print(f'Star added at pixel coords {point}, data: {star_ref}')
-            if star_ref not in self.cloudimage.starReferences:
-                self.cloudimage.starReferences.append(star_ref)
+            # Add to star collection (only called for interactive additions)
+            print(f'Interactive star added: {star_ref.name} at ({point["x"]:.1f}, {point["y"]:.1f})')
+            self.cloudimage.starReferences.append(star_ref)
     
     def _on_star_moved(self, point_index, point, old_x, old_y, new_x, new_y):
         """Handle when a star is moved."""

@@ -5,7 +5,8 @@ from PyQt5.QtWidgets import QMainWindow, QApplication, QFileDialog
 from PyQt5 import QtGui, QtCore
 #from matplotlib.backend_tools import Cursors
 import tilemapbase
-from sudrabainiemakoni.cloudimage import CloudImage, WebMercatorImage, CloudImagePair, HeightMap
+from sudrabainiemakoni.cloudimage import CloudImage, CloudImagePair, HeightMap
+from sudrabainiemakoni.webmercatorimage import ProjectionImageWebMercator
 from sudrabainiemakoni.starreference import StarReference
 from sudrabainiemakoni import plots, utils
 from smgui import Ui_MainWindow
@@ -13,6 +14,7 @@ from qthelper import gui_fname, gui_save_fname, gui_string
 import smhelper
 from exceptions import handle_exceptions
 from star_digitizer import StarDigitizer
+from control_point_digitizer import ControlPointDigitizer
 
 
 class Stream(QtCore.QObject):
@@ -91,7 +93,7 @@ class MainW (QMainWindow, Ui_MainWindow):
         self.cloudimage = None
         self.cloudimage2 = None
         self.cpair = None
-        self.webmerc = WebMercatorImage(self.cloudimage, 17, 33, 56, 63, 1.0)
+        self.webmerc = ProjectionImageWebMercator(self.cloudimage, 17, 33, 56, 63, 1.0)
         self.projHeight = 80  # km
         self.map_bounds = [17, 33, 56, 63]
         self.map_alpha = 0.85
@@ -105,8 +107,9 @@ class MainW (QMainWindow, Ui_MainWindow):
         self.measure_events = None
         self.z1, self.z2 = 75, 90
         
-        # Initialize star digitizer (will be created when needed)
+        # Initialize digitizers (will be created when needed)
         self.star_digitizer = None
+        self.control_point_digitizer = None
 
 
     def update_ui_state(self):
@@ -200,27 +203,33 @@ class MainW (QMainWindow, Ui_MainWindow):
         d=self.cloudimage.date.to_datetime(timezone=CloudImage.timezone)
         s=d.strftime('%Y-%m-%dT%H:%M:%S')
         s=gui_string(text=s, caption='Ievadi datumu, YYYY-MM-DDTHH:MM:SS')
-        import datetime
-        d=datetime.datetime.strptime(s, '%Y-%m-%dT%H:%M:%S')
-        self.cloudimage.setDate(d)
+        if s is not None:
+            import datetime
+            d=datetime.datetime.strptime(s, '%Y-%m-%dT%H:%M:%S')
+            self.cloudimage.setDate(d)
             
     @handle_exceptions(method_name="Setting coordinates")
     def SetCoordinates(self):
         lat,lon,height=self.cloudimage.getLocation()
         s=f'{lat:.5f},{lon:.5f},{height:.0f}'
         s=gui_string(text=s, caption='Ievadi koordinātes (lat,lon,z)')
-        s=s.split(',')   
-        lat,lon,height=float(s[0]), float(s[1]),0.0
-        if len(s)>2:
-            height=float(s[2])
-        self.cloudimage.setLocation(lon=lon, lat=lat, height=height)
+        if s is not None:
+            s=s.split(',')   
+            lat,lon,height=float(s[0]), float(s[1]),0.0
+            if len(s)>2:
+                height=float(s[2])
+            self.cloudimage.setLocation(lon=lon, lat=lat, height=height)
             
     @handle_exceptions(method_name="Setting epiline height")
     def SetEpilineHeight(self):
         s=f'{self.z1:.0f},{self.z2:.0f}'
         s=gui_string(text=s, caption='Ievadi z1,z2')
-        s=s.split(',')   
-        self.z1,self.z2=float(s[0]), float(s[1])
+        if s is not None:
+            s=s.split(',')   
+            self.z1,self.z2=float(s[0]), float(s[1])
+            # Update control point digitizer if active
+            if self.control_point_digitizer is not None:
+                self.control_point_digitizer.set_height_range(self.z1, self.z2)
     def PrintCameraParameters(self):
         if self.cloudimage is not None:
             cldim = self.cloudimage
@@ -577,7 +586,7 @@ class MainW (QMainWindow, Ui_MainWindow):
         if s is not None:
             s = [float(x) for x in s.split(',')]
             if len(s) == 5:
-                self.webmerc = WebMercatorImage(self.cloudimage, *s)
+                self.webmerc = ProjectionImageWebMercator(self.cloudimage, *s)
                 print(self.webmerc)
 
     @handle_exceptions(method_name="Setting map region")
@@ -592,60 +601,7 @@ class MainW (QMainWindow, Ui_MainWindow):
                 self.map_bounds = s[:4]
                 self.map_alpha = max(min(s[4], 1.0), 0.0)
 
-    @handle_exceptions(method_name="Control point digitization click")
-    def onclick_digitize_control_points(self, event):
-        # https://stackoverflow.com/a/64486726
-        ax = event.inaxes
-        if ax is None:
-            return
-        try:  # use try/except in case we are not using Qt backend
-            # 0 is the arrow, which means we are not zooming or panning.
-            zooming_panning = (
-                ax.figure.canvas.cursor().shape() not in [0, 13])
-        except:
-            zooming_panning = False
-        if zooming_panning:
-            return
-        # print(event)
-        if event.button != 1:
-            self.StopDigitizeControlPoints()
-
-        #print(self.pairNo, ax == self.MplWidget1.canvas.ax[0],ax == self.MplWidget1.canvas.ax[1])
-        if not ((ax == self.MplWidget1.canvas.ax[0] and self.pairNo == 0) or (ax == self.MplWidget1.canvas.ax[1] and self.pairNo == 1)):
-            return
-        if event.button == 1:
-            X_coordinate = event.xdata
-            Y_coordinate = event.ydata
-            self.cpair.correspondances[self.pairNo] = np.append(
-                self.cpair.correspondances[self.pairNo], [[X_coordinate, Y_coordinate]], axis=0)
-            num = len(self.cpair.correspondances[self.pairNo])
-
-            ax.plot(X_coordinate, Y_coordinate, marker='o',
-                    fillstyle='none', markeredgecolor='red')
-            ax.annotate(str(num), xy=(X_coordinate, Y_coordinate), xytext=(
-                3, 3), color='#AAFFAA', fontsize=16, textcoords='offset pixels')
-            # starlist.append((sname,X_coordinate,Y_coordinate))
-
-            if self.pairNo == 0:
-                epilines = self.cpair.GetEpilinesAtHeightInterval(
-                    [self.z1, self.z2], [[X_coordinate, Y_coordinate]], True)
-                # print(epilines)
-                self.tempepiline = self.MplWidget1.canvas.ax[1].plot(epilines[0, :, 0], epilines[0, :, 1],
-                                                                     color='yellow', marker='o', ms=1, lw=0.8)
-            if self.pairNo == 1:
-                llh, rayminimaldistance, z_intrinsic_error, valid = self.cpair.GetHeightPoints(
-                    [self.cpair.correspondances[0][-1]], [self.cpair.correspondances[1][-1]])
-                try:
-                    print(
-                        f'Augstums {llh[2][0]/1000.0:.1f}km, Staru attālums {rayminimaldistance[0]:.1f}m')
-                    line = self.tempepiline.pop(0)
-                    line.remove()
-                except Exception as e:
-                    print(f"Error calculating height: {str(e)}")
-
-            ax.figure.canvas.draw()
-
-            self.pairNo = (self.pairNo + 1) % 2
+    # onclick_digitize_control_points method now handled by ControlPointDigitizer
 
     @handle_exceptions(method_name="Control point digitization button click")
     def DigitizeControlPointsClick(self):
@@ -656,32 +612,31 @@ class MainW (QMainWindow, Ui_MainWindow):
 
     @handle_exceptions(method_name="Starting control point digitization")
     def StartDigitizeControlPoints(self):
+        print('Starting control point digitization...')
         if self.isDigitizeControlPoints is None and self.cloudimage2 is not None:
-            self.MplWidget1.canvas.fig.set_facecolor('plum')
-            self.DrawImage(otrs=True, kontrolpunkti=True)
+            self.DrawImage(otrs=True, kontrolpunkti=False, plot_stars=False)
+            print('Click on the first image to start digitizing control points.')
+            # Get current axes from canvas
+            ax1 = self.MplWidget1.canvas.ax[0]
+            ax2 = self.MplWidget1.canvas.ax[1]
+            
+            # Create CloudImagePair if needed
             if self.cpair is None:
                 self.cpair = CloudImagePair(self.cloudimage, self.cloudimage2)
-            self.pairNo = 0
-            self.isDigitizeControlPoints = self.MplWidget1.canvas.mpl_connect(
-                'button_press_event', self.onclick_digitize_control_points)
+            
+            # Create control point digitizer with current axes and cloudimage pair
+            self.control_point_digitizer = ControlPointDigitizer(
+                ax1, ax2, self.cpair, self, self.z1, self.z2)
+            print('Control point digitization started. Click on the first image to select points.')
+            self.control_point_digitizer.start_digitization()
+            print('Control point digitization is active.')
+            self.isDigitizeControlPoints = True  # Keep for compatibility
 
     @handle_exceptions(method_name="Stopping control point digitization")
     def StopDigitizeControlPoints(self):
-        if self.isDigitizeControlPoints is not None:
-            self.MplWidget1.canvas.mpl_disconnect(self.isDigitizeControlPoints)
-            ll = min(len(self.cpair.correspondances[0]), len(
-                self.cpair.correspondances[1]))
-            self.cpair.correspondances[0] = self.cpair.correspondances[0][0:ll]
-            self.cpair.correspondances[1] = self.cpair.correspondances[1][0:ll]
-            matchfile = f'{os.path.split(self.cloudimage.filename)[0]}/{self.cloudimage.code}_{self.cloudimage2.code}.txt'
-            matchfile = gui_save_fname(
-                directory=matchfile,
-                caption='Atbilstību fails',
-                filter='(*.txt)')
-            if matchfile != '':
-                self.cpair.SaveCorrespondances(matchfile)
-            self.MplWidget1.canvas.fig.set_facecolor('white')
-            self.DrawImage(otrs=True, kontrolpunkti=True)
+        if self.isDigitizeControlPoints is not None and self.control_point_digitizer is not None:
+            self.control_point_digitizer.stop_digitization()
+            self.control_point_digitizer = None
         self.isDigitizeControlPoints = None
         self.update_ui_state()
 
@@ -870,19 +825,34 @@ class MainW (QMainWindow, Ui_MainWindow):
                 filter=f'(*{ext})')
             if projfile != '':
                 jgwfile = os.path.splitext(projfile)[0]+extjgw
+                wm = ProjectionImageWebMercator(None, 17, 33, 56, 63, 1.0)
+                wm.__setstate__(self.projected_image[0])
                 if jpg:
                     img = self.projected_image[1][:, :, 0:3]
+                    # Save JPG with world file
+                    wm.SaveJgw(jgwfile)
+                    import skimage.io
+                    skimage.io.imsave(projfile, img)
+                    print('Fails saglabāts:', projfile)
                 else:
                     img = self.projected_image[1]
-                wm = WebMercatorImage(None, 17, 33, 56, 63, 1.0)
-                wm.__setstate__(self.projected_image[0])
-                wm.SaveJgw(jgwfile)
-                import skimage.io
-                skimage.io.imsave(projfile, img)
-                if not jpg:
+                    # Save TIFF using rasterio with proper CRS
+                    try:
+                        wm.SaveGeoTiffRasterio(img, projfile)
+                        print('GeoTIFF fails ar CRS informāciju saglabāts:', projfile)
+                    except (ImportError, Exception) as e:
+                        # Fallback to old method if rasterio is not available or fails
+                        wm.SaveJgw(jgwfile)
+                        import skimage.io
+                        skimage.io.imsave(projfile, img)
+                        if isinstance(e, ImportError):
+                            print('TIFF fails ar world file saglabāts  (rasterio nav pieejams):', projfile)
+                        else:
+                            print(f'TIFF fails ar world file saglabāts (rasterio kļūda: {e}):', projfile)
+                    
+                    # Create KML overlay for TIFF files
                     from sudrabainiemakoni import savekml
                     savekml.mapOverlay(wm, img, self.projHeight, projfile, saveimage=False, cloudimage=self.cloudimage)
-                print('Fails saglabāts:', projfile)
 
     @handle_exceptions(method_name="Adding star with Alt-Az coordinates")
     def addStarWithAltAz(self, name, x_coord, y_coord, az_deg, alt_deg):
