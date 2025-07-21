@@ -1,5 +1,4 @@
 __author__ = 'Juris Seņņikovs'
-import os
 import astropy
 import astropy.coordinates
 import astropy.units as u

@@ -75,7 +75,9 @@ def PlotRADecGrid(cloudImage: CloudImage,  outImageDir = None,  stars = False, s
 
         fig, ax = plt.subplots(figsize=(20,10))
         ax.imshow(cloudImage.imagearray)
-        DrawRADecGrid(ax, cloudImage.radecgrid)
+        from sudrabainiemakoni.wcs_coordinate_systems import WCSCoordinateSystemsAdapter
+        wcs_adapter = WCSCoordinateSystemsAdapter(cloudImage)
+        DrawRADecGrid(ax, wcs_adapter.radecgrid)
         ax.set_yticklabels([])
         ax.set_xticklabels([])
         ax.set_yticks([])
@@ -84,10 +86,10 @@ def PlotRADecGrid(cloudImage: CloudImage,  outImageDir = None,  stars = False, s
         if stars:
             PlotStars(cloudImage, ax)
             if outImageDir is not None:
-                fig.savefig(f'{outImageDir}ekv_coord_{imid}_zvaigznes.jpg', dpi=300, bbox_inches='tight')
+                fig.savefig(f'{outImageDir}/ekv_coord_{imid}_zvaigznes.jpg', dpi=300, bbox_inches='tight')
         else:
             if outImageDir is not None:
-                fig.savefig(f'{outImageDir}ekv_coord_{imid}.jpg', dpi=300, bbox_inches='tight')
+                fig.savefig(f'{outImageDir}/ekv_coord_{imid}.jpg', dpi=300, bbox_inches='tight')
         if showplot:
             plt.show()
         else:
@@ -103,7 +105,9 @@ def PlotAltAzGrid(cloudImage: CloudImage, outImageDir = None,  stars = False, sh
         if from_camera and cloudImage.camera.camera_enu is not None:
             DrawAltAzGrid(ax, cloudImage.GetAltAzGrid_fromcamera())
         else:
-            DrawAltAzGrid(ax, cloudImage.aazgrid)
+            from sudrabainiemakoni.wcs_coordinate_systems import WCSCoordinateSystemsAdapter
+            wcs_adapter = WCSCoordinateSystemsAdapter(cloudImage)
+            DrawAltAzGrid(ax, wcs_adapter.aazgrid)
         ax.set_yticklabels([])
         ax.set_xticklabels([])
         ax.set_yticks([])
@@ -112,10 +116,10 @@ def PlotAltAzGrid(cloudImage: CloudImage, outImageDir = None,  stars = False, sh
         if stars:
             PlotStars(cloudImage, ax)
             if outImageDir is not None:
-                fig.savefig(f'{outImageDir}horiz_coord_{imid}_zvaigznes.jpg', dpi=300, bbox_inches='tight')
+                fig.savefig(f'{outImageDir}/horiz_coord_{imid}_zvaigznes.jpg', dpi=300, bbox_inches='tight')
         else:
             if outImageDir is not None:
-                fig.savefig(f'{outImageDir}horiz_coord_{imid}.jpg', dpi=300, bbox_inches='tight')
+                fig.savefig(f'{outImageDir}/horiz_coord_{imid}.jpg', dpi=300, bbox_inches='tight')
         if doPlot:
             if showplot:
                 plt.show()
