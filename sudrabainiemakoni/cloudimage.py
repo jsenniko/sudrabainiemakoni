@@ -3,7 +3,6 @@ import os
 import astropy
 import astropy.coordinates
 import astropy.units as u
-import astropy.wcs
 import datetime, pytz
 import numpy as np
 import pandas as pd
@@ -20,94 +19,6 @@ from sudrabainiemakoni import calculations
 from sudrabainiemakoni.starreference import StarReference
 import cameraprojections
 
-class AAZImage:
-    def __init__(self, cloudImage):
-        self.cloudImage = cloudImage
-    def Initialize(self,  width=None,  height=None):
-        x=self.cloudImage.aazgrid.az.wrap_at(180*u.deg).value
-        y=self.cloudImage.aazgrid.alt.value
-        self.azmin, self.azmax, self.altmin, self.altmax = np.min(x),np.max(x), np.min(y), np.max(y)
-        # prepare image transformed to alt az coordinates and corresponding reference information
-        if width is None:
-            width = self.cloudImage.imagearray.shape[1]
-        if height is None:
-            height = self.cloudImage.imagearray.shape[0]
-        self.aaz_image=np.zeros(shape=(height, width,3), dtype='uint8')
-        az_arr=np.linspace(self.azmin,self.azmax, self.aaz_image.shape[1])
-        alt_arr=np.linspace(self.altmax,self.altmin, self.aaz_image.shape[0])
-        self.az_grid, self.alt_grid = np.meshgrid(az_arr, alt_arr)
-    def Prepare_throughRA(self):
-        # veidojam augstuma/azimuta koodinātēs veidotu bitmapu
-        # tas vajadzīgs, lai būtu iespējama transformācija no piemēram lat/lon/height mākoņos uz AltAz un varētu izvēlēties pikseli
-        # šajā apakšprogrammāto darām caur rektascensiju un deklināciju (jo pagaidām nemāku izveidot WCS objektu AltAz koordinātēs)
-        # vēl iespējamā metode ir fitēt kamera leņķus, attēla centru (ja nu gadījumā ir apgriezts) un skata leņķi
-        # vēl iespējams arī inteprolēt pēc tiešās piešķiršanas piem ar scipy.ndimage.spline_filter
-        print('Prepare AAZImage grid through RA')
-        cc_grid = astropy.coordinates.SkyCoord(astropy.coordinates.AltAz(
-                location = self.cloudImage.aazgrid.location, obstime = self.cloudImage.aazgrid.obstime, az=self.az_grid*u.deg, alt=self.alt_grid*u.deg))
-        ra_dec_grid=cc_grid.transform_to(astropy.coordinates.ICRS())
-        # find map of pixels from original_image to aazimage
-        self.aaz_pixels_in_original_image = self.cloudImage.wcs.world_to_pixel(ra_dec_grid)
-        self.aaz_pixels_in_original_image = np.array(self.aaz_pixels_in_original_image[1], dtype='int'), np.array(self.aaz_pixels_in_original_image[0], dtype='int')
-        self.valid = (self.aaz_pixels_in_original_image[0]>=0) & (self.aaz_pixels_in_original_image[0]<self.cloudImage.imagearray.shape[0]) \
-                & (self.aaz_pixels_in_original_image[1]>=0) & (self.aaz_pixels_in_original_image[1]<self.cloudImage.imagearray.shape[1])
-        self.iaz_grid, self.ialt_grid = np.meshgrid(np.arange(0, self.aaz_image.shape[1]), np.arange(0, self.aaz_image.shape[0]))
-    def FillImage(self):
-        self.aaz_image[self.ialt_grid[self.valid], self.iaz_grid[self.valid]]= \
-            self.cloudImage.imagearray[self.aaz_pixels_in_original_image[0][self.valid],self.aaz_pixels_in_original_image[1][self.valid]]
-    def GetPixelCoords(self, az, alt):
-        azpix=np.round((az-self.azmin)/(self.azmax-self.azmin)*self.aaz_image.shape[1]).astype('int')
-        altpix=np.round((self.altmax - alt)/(self.altmax-self.altmin)*self.aaz_image.shape[0]).astype('int')
-
-        return azpix, altpix
-
-class LatLonImage:
-    def __init__(self, cloudImage, lonmin, lonmax, latmin, latmax, npix_lon, npix_lat):
-        self.lonmin, self.lonmax, self.latmin, self.latmax =  lonmin, lonmax, latmin, latmax
-        self.npix_lon, self.npix_lat = npix_lon, npix_lat
-        self.longitudes = np.linspace(lonmin,lonmax, npix_lon)
-        self.latitudes = np.linspace(latmin,latmax, npix_lat)
-        self.lon_grid, self.lat_grid = np.meshgrid(self.longitudes, self.latitudes)
-        self.ilon_grid, self.ilat_grid = np.meshgrid(np.arange(0, npix_lon), np.arange(0, npix_lat))
-        self.cloudImage = cloudImage
-
-    def prepare_reproject(self, height_km):
-        height = height_km* u.km
-        location_grid = astropy.coordinates.EarthLocation(lon = self.lon_grid, lat=self.lat_grid, height = height)
-        itrs_grid = astropy.coordinates.ITRS(x=location_grid.x, y=location_grid.y, z=location_grid.z, obstime=self.cloudImage.date)
-        # šeit sanāks alt/az kopā ar attālumu no novērotāja
-        aaz_grid = itrs_grid.transform_to(self.cloudImage.altaz)
-        aaz_grid =astropy.coordinates.AltAz(location = aaz_grid.location, obstime = aaz_grid.obstime, az=aaz_grid.az, alt=aaz_grid.alt)
-        print('Got AAZ_GRID')
-        # find pixels in AltAz image
-        # eliminate circular jump at north
-        x=aaz_grid.az.wrap_at(180*u.deg).value
-        y=aaz_grid.alt.value
-        aazimage = self.cloudImage.AAZImage
-        self.azpix, self.altpix = aazimage.GetPixelCoords(x, y)
-        self.maskpix=(self.azpix>=0) & (self.azpix<aazimage.aaz_image.shape[1]) & (self.altpix>=0) & (self.altpix<aazimage.aaz_image.shape[0])
-
-    def Fill_projectedImage(self):
-        projected_image=np.zeros(shape=(self.npix_lat, self.npix_lon, 3), dtype='uint8')
-        aazimage = self.cloudImage.AAZImage
-        projected_image[self.ilat_grid[self.maskpix], self.ilon_grid[self.maskpix]]=aazimage.aaz_image[self.altpix[self.maskpix],self.azpix[self.maskpix]]
-        return projected_image
-    def GetPixelCoords(self, longitudes, latitudes):
-        longitude_pix = (longitudes-self.lonmin)/(self.lonmax-self.lonmin)*self.npix_lon
-        latitude_pix = (latitudes-self.latmin)/(self.latmax-self.latmin)*self.npix_lat
-        return longitude_pix, latitude_pix
-    def GetJgw(self):
-        return [(self.lonmax-self.lonmin)/self.npix_lon,
-                0,
-                0,
-                (self.latmax-self.latmin)/self.npix_lat,
-                self.lonmin,
-               self.latmin,]
-    def SaveJgw(self, filename):
-        jgw = self.GetJgw()
-        with open(filename,'w') as f:
-            for l in jgw:
-                f.write(str(l)+'\n')
 
 # Import the new Web Mercator implementation and create backwards compatibility alias
 from .webmercatorimage import ProjectionImageWebMercator
@@ -473,7 +384,7 @@ class CloudImage:
         return cldim    
     def __getstate__(self):
         state = self.__dict__
-        invalid = {"xxx", "_aazgrid", "_radecgrid","_AAZImage"}
+        invalid = {"xxx"}
         return {x: state[x] for x in state if x not in invalid}
 
     def save(self, filename):
@@ -617,65 +528,11 @@ class CloudImage:
             return astropy.coordinates.SkyCoord([r.skycoord for r in self.starReferences])
         except:
             return []
-    def GetWCS(self, sip_degree = 2,  fit_parameters={}):
-        # izveidojam WCS priekš attēla (world coordinate system)
-        # sip ir 'Simple Imaging Polynomial' https://irsa.ipac.caltech.edu/data/SPITZER/docs/files/spitzer/shupeADASS.pdf
-        # tas ļauj transformēt attēlu un ņem vērā dažādus potenciālos attēlu kropļojumus
-        # šeit uzdodam polinoma kārtu, atkarībā no zvaigžņu izvietojuma kvalitātes uz katra no attēliem, šo vajadzētu mainīt
-        # tāpēc arī ieviesu ['wcs']['sip_degree'] mainīgo pie katra no attēliem.
-        # (Piem. nevar likt augstu kārtu polionomam, ja references zvaigznes ir novietotas gandrīz uz vienas līnijas)
-
-        # wcs objekta atrašana no zvaigznēm atbilsotšajām pikseļu koordinātēm
-        pixelcoords = self.getPixelCoords()
-        skycoords = self.getSkyCoords()
-        wcs = astropy.wcs.utils.fit_wcs_from_points((pixelcoords[:,0], pixelcoords[:,1]),
-                astropy.coordinates.SkyCoord(skycoords), sip_degree=sip_degree,**fit_parameters)
-        print(wcs)
-        self.wcs=wcs
-
-    def TestStarFit(self):
-        # test fit
-        wcs = self.wcs
-        for starref in self.starReferences:
-            px = starref.pixelcoords
-            sc=wcs.pixel_to_world(*px)
-            x, y =wcs.world_to_pixel(starref.skycoord)
-            dist=np.sqrt((px[0]-x)**2+(px[1]-y)**2)
-            print(starref.name, sc.separation(starref.skycoord), dist)
 
 
-    @property
-    def radecgrid(self):
-        self.GetImageRaDecGrid()
-        return self._radecgrid
-
-    def GetImageRaDecGrid(self, reload=False):
-        if not hasattr(self, '_radecgrid') or self._radecgrid is None or reload:
-            print('Calculate RaDec grid')
-            self._radecgrid = calculations.GetImageRaDecGrid(self.imagearray, self.wcs)
-    @property
-    def aazgrid(self):
-        self.GetAltAzGrid()
-        return self._aazgrid
-    def GetAltAzGrid(self, reload=False):
-        if not hasattr(self, '_aazgrid') or self._aazgrid is None or reload:
-            print('Calculate AltAz grid')
-            self._aazgrid = self.radecgrid.transform_to(self.altaz)
     def GetAltAzGrid_fromcamera(self):
         return Camera.GetAltAzGrid_fromcamera(self.imagearray.shape[1], self.imagearray.shape[0], self.camera.camera_enu)
 
-    @property
-    def AAZImage(self):
-        self.Initialize_AltAzImage()
-        return self._AAZImage
-
-    def Initialize_AltAzImage(self, width=None,  height=None, reload=False):
-        if not hasattr(self, '_AAZImage') or self._AAZImage is None or reload:
-            self._AAZImage = AAZImage(self)
-            self._AAZImage.Initialize(width, height)
-
-    def PrepareAltAZImage_throughRA(self):
-        self.AAZImage.Prepare_throughRA(self)
 
     def PrepareCamera(self, method='optnew', **params):
         self.camera = Camera(self)
@@ -696,12 +553,6 @@ class CloudImage:
         # iegūstam ģeocentriskās koordinātes šim punktam
         ploc1=coord.transform_to(itrs).earth_location
         return ploc1
-    # funckija nosaka attēlam atbilstošās horizontālās koordinātes (AltAz), punktā ar pikseļu koordinātēm
-    def GetAAzCoord(self, pixelcoords):
-        wcs=self.wcs
-        skycoord = wcs.pixel_to_world(*pixelcoords)
-        aazc = skycoord.transform_to(self.altaz)
-        return aazc
     # sākotnēja metode
     @classmethod
     def GetDirection(cls, p, itrs):
