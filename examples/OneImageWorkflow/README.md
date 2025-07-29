@@ -31,23 +31,22 @@ The script implements the following steps from the main README:
 
 ## Input Files
 
-- `../SampleData/js_202206120030.jpg` - Noctilucent cloud image
-- `../SampleData/js_202206120030_zvaigznes.txt` - Star reference coordinates
+- `examples/SampleData/js_202106210100.jpg` - Noctilucent cloud image
+- `examples/SampleData/js_202106210100_zvaigznes.txt` - Star reference coordinates
 
 ## Output Files
 
 All outputs are saved to the `output/` directory:
 
-- `ekv_coord_js_202206120030.jpg` - Image with equatorial coordinate grid
-- `horiz_coord_js_202206120030_zvaigznes.jpg` - Image with horizontal coordinate grid and stars
-- `js_202206120030_camera_enu.json` - Camera parameters in ENU coordinates
-- `js_202206120030_camera_ecef.json` - Camera parameters in ECEF coordinates
-- `map_80_js_202206120030.jpg` - Final georeferenced map at 80km altitude
+- `ekv_coord_js_202106210100.jpg` - Image with equatorial coordinate grid
+- `horiz_coord_js_202106210100_zvaigznes.jpg` - Image with horizontal coordinate grid and stars
+- `js_202106210100_camera_enu.json` - Camera parameters in ENU coordinates
+- `js_202106210100_camera_ecef.json` - Camera parameters in ECEF coordinates
+- `map_80_js_202106210100.jpg` - Final georeferenced map at 80km altitude
 
 ## Technical Notes
 
 - Uses the refactored `WCSCoordinateSystemsAdapter` for WCS functionality
-- Observer location set to Riga, Latvia coordinates as example
-- Map projection covers Baltic region (20°E-30°E, 54°N-60°N)
+- Observer location set to specific Latvia coordinates (56.693°N, 23.656°E)
+- Map projection covers extended Baltic region (15°E-35°E, 56°N-64°N)
 - Noctilucent clouds projected to 80km altitude (typical height)
-- Camera referencing provides pixel-level accuracy for geometric calculations

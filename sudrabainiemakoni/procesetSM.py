@@ -36,7 +36,7 @@ def doProcessing(args):
         cldim.LoadCamera(args.loadCamera)
     elif args.loadProject is None:
         print('Calibrating camera')
-        cldim.PrepareCamera(method='optnew', distortion=args.optimizeDistortion, centers=args.notOptimizeCenter, separate_x_y=args.notOptimizeUnsymmetric)
+        cldim.PrepareCamera(distortion=args.optimizeDistortion, centers=args.notOptimizeCenter, separate_x_y=args.notOptimizeUnsymmetric)
     if args.saveCamera is not None:
         print('Save camera to:',args.saveCamera)
         cldim.SaveCamera(args.saveCamera)
