@@ -23,6 +23,95 @@ from scipy.spatial.transform import Rotation
 from sudrabainiemakoni import utils
 from sudrabainiemakoni import optimize_camera
 import cameraprojections
+from dataclasses import dataclass
+from enum import IntEnum
+from typing import Literal
+
+
+class DistortionOrder(IntEnum):
+    """Enumeration for camera distortion correction orders"""
+    NONE = 0
+    FIRST_ORDER = 1  
+    SECOND_ORDER = 2
+    THIRD_ORDER = 3
+
+ProjectionType = Literal['rectilinear', 'equirectangular', 'stereographic']
+
+@dataclass
+class CameraCalibrationParams:
+    """
+    Parameters for camera calibration fitting process.
+    
+    Attributes:
+        distortion: Order of lens distortion correction (0-3)
+        centers: Whether to optimize camera center position
+        separate_x_y: Whether to use separate focal lengths for X and Y axes
+        projectiontype: Type of camera projection model
+    """
+    distortion: DistortionOrder = DistortionOrder.NONE
+    centers: bool = True
+    separate_x_y: bool = True
+    projectiontype: ProjectionType = 'rectilinear'
+    
+    def to_dict(self) -> dict:
+        """Convert to dictionary for **kwargs unpacking to Camera.Fit()"""
+        return {
+            'distortion': int(self.distortion),
+            'centers': self.centers,
+            'separate_x_y': self.separate_x_y,
+            'projectiontype': self.projectiontype
+        }
+    
+    @classmethod
+    def from_dict(cls, params: dict) -> 'CameraCalibrationParams':
+        """Create CameraCalibrationParams from dictionary"""
+        return cls(
+            distortion=DistortionOrder(params.get('distortion', 0)),
+            centers=params.get('centers', True),
+            separate_x_y=params.get('separate_x_y', True),
+            projectiontype=params.get('projectiontype', 'rectilinear')
+        )
+    
+    def validate(self) -> tuple[bool, str]:
+        """
+        Validate parameter values.
+        
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        if not isinstance(self.distortion, (int, DistortionOrder)) or not (0 <= int(self.distortion) <= 3):
+            return False, f"Distortion order must be 0-3, got {self.distortion}"
+        
+        valid_projections = ['rectilinear', 'equirectangular', 'stereographic']
+        if self.projectiontype not in valid_projections:
+            return False, f"Projection type must be one of {valid_projections}, got {self.projectiontype}"
+        
+        if not isinstance(self.centers, bool):
+            return False, f"Centers parameter must be boolean, got {type(self.centers)}"
+        
+        if not isinstance(self.separate_x_y, bool):
+            return False, f"Separate X/Y parameter must be boolean, got {type(self.separate_x_y)}"
+        
+        return True, ""
+    
+    def get_distortion_description(self) -> str:
+        """Get human-readable description of distortion order"""
+        descriptions = {
+            0: "None (No distortion correction)",
+            1: "First Order (Linear distortion)",
+            2: "Second Order (Quadratic distortion)", 
+            3: "Third Order (Cubic distortion)"
+        }
+        return descriptions.get(int(self.distortion), "Unknown")
+    
+    def get_projection_description(self) -> str:
+        """Get human-readable description of projection type"""
+        descriptions = {
+            'rectilinear': "Rectilinear (Standard perspective)",
+            'equirectangular': "Equirectangular (360° panoramic)",
+            'stereographic': "Stereographic (Wide-angle fisheye)"
+        }
+        return descriptions.get(self.projectiontype, "Unknown")
 
 
 class Camera:

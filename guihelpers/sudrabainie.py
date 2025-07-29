@@ -6,6 +6,9 @@ from PyQt5 import QtGui, QtCore
 #from matplotlib.backend_tools import Cursors
 import tilemapbase
 from sudrabainiemakoni.cloudimage import CloudImage, CloudImagePair, HeightMap
+from sudrabainiemakoni.cloudimage_camera import CameraCalibrationParams
+from guihelpers.camera_parameters import show_camera_parameters_dialog
+from guihelpers.settings import AppSettings
 from sudrabainiemakoni.webmercatorimage import ProjectionImageWebMercator
 from sudrabainiemakoni.starreference import StarReference
 from sudrabainiemakoni import plots, utils
@@ -99,8 +102,8 @@ class MainW (QMainWindow, Ui_MainWindow):
         self.map_alpha = 0.85
         self.heightmap = None
         self.projected_image = None
-        self.camera_calib_params = dict(
-            distortion=0, centers=True, separate_x_y=True, projectiontype='rectilinear')
+        # Create local AppSettings instance
+        self.app_settings = AppSettings()
 
         self.isDigitizeStars = None
         self.isDigitizeControlPoints = None
@@ -245,7 +248,7 @@ class MainW (QMainWindow, Ui_MainWindow):
     def CalibrateCameraClick(self):
         if self.cloudimage is not None:
             cldim = self.cloudimage
-            cldim.PrepareCamera(**self.camera_calib_params)
+            cldim.PrepareCamera(**self.app_settings.camera_calibration.to_dict())
             # distortion=False, centers=True, separate_x_y=True
             #cldim.PrepareCamera(method='optnew', distortion=args.optimizeDistortion, centers=args.notOptimizeCenter, separate_x_y=args.notOptimizeUnsymmetric)
             self.PrintCameraParameters()
@@ -795,16 +798,21 @@ class MainW (QMainWindow, Ui_MainWindow):
 
     @handle_exceptions()
     def CameraCalibrationParameters(self):
-        s = f'{int(self.camera_calib_params["distortion"])},{int(self.camera_calib_params["centers"])},{int(self.camera_calib_params["separate_x_y"])},{self.camera_calib_params["projectiontype"]}'
-        s = gui_string(text=s, caption="distortion,centers,separate_x_y,projectiontype")
-        if s is not None:
-            #s = [int(x) for x in s.split(',')]
-            s=s.split(',')
-            self.camera_calib_params["distortion"] = int(s[0])
-            self.camera_calib_params["centers"] = int(s[1]) != 0
-            self.camera_calib_params["separate_x_y"] = int(s[2]) != 0
-            self.camera_calib_params["projectiontype"] = s[3]
-            print('Kalibrēšanas parametri:', self.camera_calib_params)
+        """Open camera calibration parameters dialog"""
+        accepted, new_params = show_camera_parameters_dialog(
+            initial_params=self.app_settings.camera_calibration
+        )
+        
+        if accepted:
+            # Update the settings object
+            self.app_settings.camera_calibration = new_params
+            
+            # Save to persist the changes
+            self.app_settings.save_to_file()
+            
+            print('Kalibrēšanas parametri:', self.app_settings.camera_calibration.to_dict())
+            print(f'Distortion: {new_params.get_distortion_description()}')
+            print(f'Projection: {new_params.get_projection_description()}')
 
     @handle_exceptions(method_name="Saving projected image")
     def SaveProjectedImage(self, jpg=True):
