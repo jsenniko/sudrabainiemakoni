@@ -104,6 +104,9 @@ class MainW (QMainWindow, Ui_MainWindow):
         self.projected_image = None
         # Create local AppSettings instance
         self.app_settings = AppSettings()
+        
+        # Load settings into UI components
+        self.load_settings_to_ui()
 
         self.isDigitizeStars = None
         self.isDigitizeControlPoints = None
@@ -114,6 +117,19 @@ class MainW (QMainWindow, Ui_MainWindow):
         self.star_digitizer = None
         self.control_point_digitizer = None
 
+    def load_settings_to_ui(self):
+        """Load settings from app_settings into UI components"""
+        # Set file dialog manager's last directory from settings
+        from qthelper import file_dialog_manager
+        if self.app_settings.last_directory:
+            file_dialog_manager.last_directory = self.app_settings.last_directory
+
+    def save_ui_to_settings(self):
+        """Save UI state to app_settings and persist to file"""
+        # Save last directory from file dialog manager to settings
+        from qthelper import file_dialog_manager
+        self.app_settings.last_directory = file_dialog_manager.last_directory
+        self.app_settings.save_to_file()
 
     def update_ui_state(self):
         self.actionMainit_att_lu.setEnabled(self.cloudimage is not None)
@@ -163,6 +179,9 @@ class MainW (QMainWindow, Ui_MainWindow):
 
     def closeEvent(self, event):
         """Shuts down application on close."""
+        # Save UI state to settings
+        self.save_ui_to_settings()
+        
         # Return standard output to defaults.
         sys.stdout = sys.__stdout__
         sys.stderr = sys.__stderr__

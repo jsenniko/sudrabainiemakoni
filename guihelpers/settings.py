@@ -82,6 +82,9 @@ class AppSettings:
         self.camera_calibration = CameraCalibrationParams()
         self.metadata = SettingsMetadata(created_by=app_name)
         
+        # Last used directory for projects and pictures
+        self.last_directory: Optional[str] = None
+        
         # Get search paths
         self.search_paths = get_settings_search_paths(app_name, settings_filename)
         
@@ -131,7 +134,8 @@ class AppSettings:
         """
         return {
             "camera_calibration": self.camera_calibration.to_dict(),
-            "metadata": asdict(self.metadata)
+            "metadata": asdict(self.metadata),
+            "last_directory": self.last_directory
         }
     
     def _from_dict(self, data: Dict[str, Any]):
@@ -162,6 +166,10 @@ class AppSettings:
             except Exception as e:
                 print(f"Warning: Could not load metadata: {e}")
                 # Keep the default metadata initialized in __init__
+        
+        # Load last directory
+        if "last_directory" in data:
+            self.last_directory = data["last_directory"]
     
     def load_from_file(self):
         """Load settings from the active settings file"""
