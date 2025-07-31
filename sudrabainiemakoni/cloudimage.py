@@ -68,6 +68,11 @@ class CloudImage:
                     d.filename = test
             print(f'Image does not exist {d.filename}')
         #d.LoadCamera(filename)
+        
+        # Fix camera reference after pickle loading
+        if hasattr(d, 'camera') and d.camera is not None:
+            d.camera.cloudImage = d
+        
         return d
 
     def __init__(self, code, filename):

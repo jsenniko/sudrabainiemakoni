@@ -106,6 +106,7 @@
     <addaction name="actionProjekcijas_apgabals"/>
     <addaction name="actionKartes_apgabals"/>
     <addaction name="actionKameras_kalibr_cijas_parametri"/>
+    <addaction name="actionKameras_modifikacija"/>
     <addaction name="separator"/>
     <addaction name="actionUzst_d_t_datumu"/>
     <addaction name="actionUzst_d_t_platumu_garumu_augstumu"/>
@@ -276,6 +277,14 @@
   <action name="actionKameras_kalibr_cijas_parametri">
    <property name="text">
     <string>Kameras kalibrācijas parametri</string>
+   </property>
+  </action>
+  <action name="actionKameras_modifikacija">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Modificēt kameras parametrus</string>
    </property>
   </action>
   <action name="actionSaglab_t_projic_to_att_lu_JPG">
