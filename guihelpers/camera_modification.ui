@@ -32,13 +32,13 @@
        <item>
         <widget class="QGroupBox" name="groupBox_focal">
          <property name="title">
-          <string>Focal Length (pixels)</string>
+          <string>Focal Length</string>
          </property>
-         <layout class="QFormLayout" name="formLayout_focal">
+         <layout class="QGridLayout" name="gridLayout_focal">
           <item row="0" column="0">
            <widget class="QLabel" name="label_fx">
             <property name="text">
-             <string>Focal Length X:</string>
+             <string>X:</string>
             </property>
            </widget>
           </item>
@@ -51,17 +51,51 @@
              <double>99999.000000000000000</double>
             </property>
             <property name="decimals">
-             <number>3</number>
+             <number>1</number>
             </property>
             <property name="value">
              <double>1000.000000000000000</double>
+            </property>
+            <property name="suffix">
+             <string> px</string>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>120</width>
+              <height>16777215</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="2">
+           <widget class="QDoubleSpinBox" name="doubleSpinBox_fx_mm">
+            <property name="minimum">
+             <double>1.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+            <property name="decimals">
+             <number>1</number>
+            </property>
+            <property name="value">
+             <double>24.000000000000000</double>
+            </property>
+            <property name="suffix">
+             <string> mm</string>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>120</width>
+              <height>16777215</height>
+             </size>
             </property>
            </widget>
           </item>
           <item row="1" column="0">
            <widget class="QLabel" name="label_fy">
             <property name="text">
-             <string>Focal Length Y:</string>
+             <string>Y:</string>
             </property>
            </widget>
           </item>
@@ -74,10 +108,67 @@
              <double>99999.000000000000000</double>
             </property>
             <property name="decimals">
-             <number>3</number>
+             <number>1</number>
             </property>
             <property name="value">
              <double>1000.000000000000000</double>
+            </property>
+            <property name="suffix">
+             <string> px</string>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>120</width>
+              <height>16777215</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="2">
+           <widget class="QDoubleSpinBox" name="doubleSpinBox_fy_mm">
+            <property name="minimum">
+             <double>1.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>1000.000000000000000</double>
+            </property>
+            <property name="decimals">
+             <number>1</number>
+            </property>
+            <property name="value">
+             <double>24.000000000000000</double>
+            </property>
+            <property name="suffix">
+             <string> mm</string>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>120</width>
+              <height>16777215</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0" colspan="3">
+           <widget class="QCheckBox" name="checkBox_lock_focal">
+            <property name="text">
+             <string>🔗 Lock X and Y focal lengths</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0" colspan="3">
+           <widget class="QLabel" name="label_conversion_info">
+            <property name="text">
+             <string>Pixel ↔ 35mm equivalent conversion</string>
+            </property>
+            <property name="styleSheet">
+             <string>color: gray; font-style: italic;</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
             </property>
            </widget>
           </item>
@@ -222,15 +313,15 @@
          <property name="title">
           <string>Distortion Parameters</string>
          </property>
-         <layout class="QFormLayout" name="formLayout_distortion">
-          <item row="0" column="0">
+         <layout class="QHBoxLayout" name="horizontalLayout_distortion">
+          <item>
            <widget class="QLabel" name="label_k1">
             <property name="text">
              <string>K1:</string>
             </property>
            </widget>
           </item>
-          <item row="0" column="1">
+          <item>
            <widget class="QDoubleSpinBox" name="doubleSpinBox_k1">
             <property name="minimum">
              <double>-1.000000000000000</double>
@@ -247,16 +338,22 @@
             <property name="value">
              <double>0.000000000000000</double>
             </property>
+            <property name="maximumSize">
+             <size>
+              <width>100</width>
+              <height>16777215</height>
+             </size>
+            </property>
            </widget>
           </item>
-          <item row="1" column="0">
+          <item>
            <widget class="QLabel" name="label_k2">
             <property name="text">
              <string>K2:</string>
             </property>
            </widget>
           </item>
-          <item row="1" column="1">
+          <item>
            <widget class="QDoubleSpinBox" name="doubleSpinBox_k2">
             <property name="minimum">
              <double>-1.000000000000000</double>
@@ -273,16 +370,22 @@
             <property name="value">
              <double>0.000000000000000</double>
             </property>
+            <property name="maximumSize">
+             <size>
+              <width>100</width>
+              <height>16777215</height>
+             </size>
+            </property>
            </widget>
           </item>
-          <item row="2" column="0">
+          <item>
            <widget class="QLabel" name="label_k3">
             <property name="text">
              <string>K3:</string>
             </property>
            </widget>
           </item>
-          <item row="2" column="1">
+          <item>
            <widget class="QDoubleSpinBox" name="doubleSpinBox_k3">
             <property name="minimum">
              <double>-1.000000000000000</double>
@@ -299,7 +402,26 @@
             <property name="value">
              <double>0.000000000000000</double>
             </property>
+            <property name="maximumSize">
+             <size>
+              <width>100</width>
+              <height>16777215</height>
+             </size>
+            </property>
            </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_distortion">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
           </item>
          </layout>
         </widget>

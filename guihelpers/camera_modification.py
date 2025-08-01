@@ -29,13 +29,14 @@ class CameraModificationDialog(QtWidgets.QDialog):
     - Projection type (rectilinear, equirectangular, stereographic)
     """
     
-    def __init__(self, parent=None, camera=None):
+    def __init__(self, parent=None, camera=None, cloudimage=None):
         """
         Initialize the camera modification dialog.
         
         Args:
             parent: Parent widget
-            camera: Camera object with existing parameters to modify
+            camera: Camera object with existing parameters to modify (None for new camera)
+            cloudimage: CloudImage object (required for creating new cameras)
         """
         super().__init__(parent)
         
@@ -46,16 +47,21 @@ class CameraModificationDialog(QtWidgets.QDialog):
         
         uic.loadUi(ui_file, self)
         
-        # Store camera reference
+        # Store references
         self.camera = camera
+        self.cloudimage = cloudimage
         self.original_params = {}
+        
+        # Flag to prevent recursive updates during conversion
+        self._updating_focal_length = False
+        # Flag to prevent recursive updates during focal length locking
+        self._updating_locked_focal = False
         
         # Connect signals
         self.setup_connections()
         
-        # Load current camera parameters into UI
-        if camera is not None:
-            self.load_camera_params_to_ui()
+        # Load current camera parameters into UI or set defaults
+        self.load_camera_params_to_ui()
         
         # Setup tooltips
         self.setup_tooltips()
@@ -68,6 +74,15 @@ class CameraModificationDialog(QtWidgets.QDialog):
         """Setup signal connections for UI elements"""
         # Reset button
         self.pushButton_reset.clicked.connect(self.reset_to_current)
+        
+        # Focal length conversion signals
+        self.doubleSpinBox_fx.valueChanged.connect(self.on_fx_px_changed)
+        self.doubleSpinBox_fy.valueChanged.connect(self.on_fy_px_changed)
+        self.doubleSpinBox_fx_mm.valueChanged.connect(self.on_fx_mm_changed)
+        self.doubleSpinBox_fy_mm.valueChanged.connect(self.on_fy_mm_changed)
+        
+        # Focal length locking checkbox
+        self.checkBox_lock_focal.stateChanged.connect(self.on_focal_lock_changed)
     
     def setup_tooltips(self):
         """Setup helpful tooltips for UI elements"""
@@ -87,10 +102,21 @@ class CameraModificationDialog(QtWidgets.QDialog):
             "• Equirectangular: 360° panoramic cameras\n"
             "• Stereographic: Wide-angle fisheye cameras"
         )
+        self.doubleSpinBox_fx_mm.setToolTip("Focal length X in 35mm equivalent (automatically converts to/from pixels)")
+        self.doubleSpinBox_fy_mm.setToolTip("Focal length Y in 35mm equivalent (automatically converts to/from pixels)")
+        self.checkBox_lock_focal.setToolTip("When checked, changing X focal length also updates Y focal length (and vice versa)")
+        
+        # Update window title based on mode
+        if self.camera is None:
+            self.setWindowTitle("Create Camera from Manual Parameters")
+        else:
+            self.setWindowTitle("Modify Camera Parameters")
     
     def load_camera_params_to_ui(self):
         """Load current camera parameters into UI controls"""
         if self.camera is None:
+            # Set reasonable defaults for new camera creation
+            self.set_default_values()
             return
         
         try:
@@ -105,9 +131,20 @@ class CameraModificationDialog(QtWidgets.QDialog):
                 'fx': fx, 'fy': fy, 'cx': cx, 'cy': cy
             }
             
-            # Set focal lengths
-            self.doubleSpinBox_fx.setValue(fx)
-            self.doubleSpinBox_fy.setValue(fy)
+            # Set focal lengths - temporarily disable conversion to avoid recursion
+            self._updating_focal_length = True
+            try:
+                self.doubleSpinBox_fx.setValue(fx)
+                self.doubleSpinBox_fy.setValue(fy)
+                
+                # Set corresponding mm values
+                image_width, _ = self.get_image_dimensions()
+                fx_mm = self.px_to_mm(fx, image_width)
+                fy_mm = self.px_to_mm(fy, image_width)
+                self.doubleSpinBox_fx_mm.setValue(fx_mm)
+                self.doubleSpinBox_fy_mm.setValue(fy_mm)
+            finally:
+                self._updating_focal_length = False
             
             # Set center position
             self.doubleSpinBox_cx.setValue(cx)
@@ -153,11 +190,37 @@ class CameraModificationDialog(QtWidgets.QDialog):
             self.set_default_values()
     
     def set_default_values(self):
-        """Set reasonable default values"""
-        self.doubleSpinBox_fx.setValue(1000.0)
-        self.doubleSpinBox_fy.setValue(1000.0)
-        self.doubleSpinBox_cx.setValue(512.0)
-        self.doubleSpinBox_cy.setValue(384.0)
+        """Set reasonable default values based on image dimensions"""
+        # Default fallback values
+        image_width = 1024
+        image_height = 768
+        
+        # Get actual image dimensions if cloudimage is available
+        if self.cloudimage is not None and hasattr(self.cloudimage, 'imagearray'):
+            image_height, image_width = self.cloudimage.imagearray.shape[:2]
+        
+        # Calculate focal length equivalent to 24mm on full frame (36mm sensor width)
+        focal_length_px = image_width / 36.0 * 24.0
+        
+        # Set centers at half image size
+        center_x = image_width / 2.0
+        center_y = image_height / 2.0
+        
+        # Temporarily disable conversion to avoid recursion
+        self._updating_focal_length = True
+        try:
+            self.doubleSpinBox_fx.setValue(focal_length_px)
+            self.doubleSpinBox_fy.setValue(focal_length_px)
+            
+            # Set corresponding mm values
+            focal_length_mm = self.px_to_mm(focal_length_px, image_width)
+            self.doubleSpinBox_fx_mm.setValue(focal_length_mm)
+            self.doubleSpinBox_fy_mm.setValue(focal_length_mm)
+        finally:
+            self._updating_focal_length = False
+            
+        self.doubleSpinBox_cx.setValue(center_x)
+        self.doubleSpinBox_cy.setValue(center_y)
         self.doubleSpinBox_azimuth.setValue(0.0)  
         self.doubleSpinBox_elevation.setValue(30.0)
         self.doubleSpinBox_rotation.setValue(0.0)
@@ -172,6 +235,111 @@ class CameraModificationDialog(QtWidgets.QDialog):
             self.load_camera_params_to_ui()
         else:
             self.set_default_values()
+    
+    def get_image_dimensions(self):
+        """Get image dimensions from cloudimage"""
+        if self.cloudimage is not None and hasattr(self.cloudimage, 'imagearray'):
+            height, width = self.cloudimage.imagearray.shape[:2]
+            return width, height
+        return 1024, 768  # fallback
+    
+    def px_to_mm(self, focal_px, image_width):
+        """Convert focal length from pixels to 35mm equivalent"""
+        return focal_px * 36.0 / image_width
+    
+    def mm_to_px(self, focal_mm, image_width):
+        """Convert focal length from 35mm equivalent to pixels"""
+        return focal_mm * image_width / 36.0
+    
+    def on_fx_px_changed(self, value):
+        """Handle focal length X pixel value change"""
+        if self._updating_focal_length or self._updating_locked_focal:
+            return
+        self._updating_focal_length = True
+        try:
+            image_width, _ = self.get_image_dimensions()
+            fx_mm = self.px_to_mm(value, image_width)
+            self.doubleSpinBox_fx_mm.setValue(fx_mm)
+            
+            # If focal lengths are locked, update Y values too
+            if self.checkBox_lock_focal.isChecked():
+                self._updating_locked_focal = True
+                self.doubleSpinBox_fy.setValue(value)
+                self.doubleSpinBox_fy_mm.setValue(fx_mm)
+                self._updating_locked_focal = False
+        finally:
+            self._updating_focal_length = False
+    
+    def on_fy_px_changed(self, value):
+        """Handle focal length Y pixel value change"""
+        if self._updating_focal_length or self._updating_locked_focal:
+            return
+        self._updating_focal_length = True
+        try:
+            image_width, _ = self.get_image_dimensions()
+            fy_mm = self.px_to_mm(value, image_width)
+            self.doubleSpinBox_fy_mm.setValue(fy_mm)
+            
+            # If focal lengths are locked, update X values too
+            if self.checkBox_lock_focal.isChecked():
+                self._updating_locked_focal = True
+                self.doubleSpinBox_fx.setValue(value)
+                self.doubleSpinBox_fx_mm.setValue(fy_mm)
+                self._updating_locked_focal = False
+        finally:
+            self._updating_focal_length = False
+    
+    def on_fx_mm_changed(self, value):
+        """Handle focal length X mm value change"""
+        if self._updating_focal_length or self._updating_locked_focal:
+            return
+        self._updating_focal_length = True
+        try:
+            image_width, _ = self.get_image_dimensions()
+            fx_px = self.mm_to_px(value, image_width)
+            self.doubleSpinBox_fx.setValue(fx_px)
+            
+            # If focal lengths are locked, update Y values too
+            if self.checkBox_lock_focal.isChecked():
+                self._updating_locked_focal = True
+                self.doubleSpinBox_fy.setValue(fx_px)
+                self.doubleSpinBox_fy_mm.setValue(value)
+                self._updating_locked_focal = False
+        finally:
+            self._updating_focal_length = False
+    
+    def on_fy_mm_changed(self, value):
+        """Handle focal length Y mm value change"""
+        if self._updating_focal_length or self._updating_locked_focal:
+            return
+        self._updating_focal_length = True
+        try:
+            image_width, _ = self.get_image_dimensions()
+            fy_px = self.mm_to_px(value, image_width)
+            self.doubleSpinBox_fy.setValue(fy_px)
+            
+            # If focal lengths are locked, update X values too
+            if self.checkBox_lock_focal.isChecked():
+                self._updating_locked_focal = True
+                self.doubleSpinBox_fx.setValue(fy_px)
+                self.doubleSpinBox_fx_mm.setValue(value)
+                self._updating_locked_focal = False
+        finally:
+            self._updating_focal_length = False
+    
+    def on_focal_lock_changed(self, state):
+        """Handle focal length lock checkbox state change"""
+        if state == 2:  # Qt.Checked
+            # When locking is enabled, synchronize Y values to match X values
+            if not self._updating_focal_length and not self._updating_locked_focal:
+                self._updating_locked_focal = True
+                try:
+                    fx_value = self.doubleSpinBox_fx.value()
+                    fx_mm_value = self.doubleSpinBox_fx_mm.value()
+                    self.doubleSpinBox_fy.setValue(fx_value)
+                    self.doubleSpinBox_fy_mm.setValue(fx_mm_value)
+                finally:
+                    self._updating_locked_focal = False
     
     def get_modified_parameters(self) -> dict:
         """
@@ -199,6 +367,7 @@ class CameraModificationDialog(QtWidgets.QDialog):
     def apply_parameters_to_camera(self):
         """Apply the modified parameters to the camera object"""
         if self.camera is None:
+            # Cannot apply to non-existent camera - this should be handled by create_camera_from_parameters
             return False
         
         try:
@@ -279,8 +448,32 @@ class CameraModificationDialog(QtWidgets.QDialog):
             )
             return
         
-        # Apply parameters to camera
-        if self.camera is not None:
+        # Handle camera creation or modification
+        if self.camera is None:
+            # Create new camera
+            if self.cloudimage is None:
+                QMessageBox.warning(
+                    self,
+                    "Error",
+                    "CloudImage is required to create a new camera"
+                )
+                return
+                
+            new_camera = self.create_camera_from_parameters(self.cloudimage)
+            if new_camera is None:
+                QMessageBox.warning(
+                    self,
+                    "Error",
+                    "Failed to create camera from parameters"
+                )
+                return
+            
+            # Assign the new camera to cloudimage
+            self.cloudimage.camera = new_camera
+            print('Izveidota jauna kamera no manuālajiem parametriem')
+            
+        else:
+            # Modify existing camera
             success = self.apply_parameters_to_camera()
             if not success:
                 QMessageBox.warning(
@@ -289,22 +482,60 @@ class CameraModificationDialog(QtWidgets.QDialog):
                     "Failed to apply parameters to camera object"
                 )
                 return
+            print('Kameras parametri modificēti')
         
         super().accept()
+    
+    def create_camera_from_parameters(self, cloudImage):
+        """
+        Create a new camera from the dialog parameters.
+        
+        Args:
+            cloudImage: CloudImage object needed for camera creation
+            
+        Returns:
+            Camera object created from manual parameters, or None if failed
+        """
+        try:
+            from sudrabainiemakoni.cloudimage_camera import Camera
+            
+            params = self.get_modified_parameters()
+            
+            camera = Camera.from_manual_parameters(
+                cloudImage=cloudImage,
+                fx=params['fx'],
+                fy=params['fy'], 
+                cx=params['cx'],
+                cy=params['cy'],
+                azimuth=params['azimuth'],
+                elevation=params['elevation'],
+                rotation=params['rotation'],
+                k1=params['k1'],
+                k2=params['k2'],
+                k3=params['k3'],
+                projection=params['projection']
+            )
+            
+            return camera
+            
+        except Exception as e:
+            print(f"Error creating camera from parameters: {e}")
+            return None
 
 
-def show_camera_modification_dialog(parent=None, camera=None) -> Tuple[bool, Optional[dict]]:
+def show_camera_modification_dialog(parent=None, camera=None, cloudimage=None) -> Tuple[bool, Optional[dict]]:
     """
     Convenience function to show the camera modification dialog.
     
     Args:
         parent: Parent widget
-        camera: Camera object to modify
+        camera: Camera object to modify (None for new camera creation)
+        cloudimage: CloudImage object (required for new camera creation)
     
     Returns:
         Tuple of (dialog_accepted, modified_parameters_dict)
     """
-    dialog = CameraModificationDialog(parent, camera)
+    dialog = CameraModificationDialog(parent, camera, cloudimage)
     accepted = dialog.exec_() == QtWidgets.QDialog.Accepted
     
     if accepted:

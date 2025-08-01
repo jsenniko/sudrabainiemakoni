@@ -12,7 +12,7 @@ from guihelpers.camera_modification import show_camera_modification_dialog
 from guihelpers.settings import AppSettings
 from sudrabainiemakoni.webmercatorimage import ProjectionImageWebMercator
 from sudrabainiemakoni.starreference import StarReference
-from sudrabainiemakoni import plots, utils
+from sudrabainiemakoni import cameraprojections, plots, utils
 from smgui import Ui_MainWindow
 from qthelper import gui_fname, gui_save_fname, gui_string
 import smhelper
@@ -170,7 +170,7 @@ class MainW (QMainWindow, Ui_MainWindow):
             self.projected_image is not None)
         self.actionIelas_t_kameru.setEnabled(self.cloudimage is not None)
         self.actionSaglab_t_kameru.setEnabled(self.cloudimage is not None and hasattr(self.cloudimage, 'camera'))
-        self.actionKameras_modifikacija.setEnabled(self.cloudimage is not None and hasattr(self.cloudimage, 'camera'))
+        self.actionKameras_modifikacija.setEnabled(self.cloudimage is not None)
         self.actionUzst_d_t_datumu.setEnabled(self.cloudimage is not None)
         
     def onUpdateText(self, text):
@@ -267,6 +267,10 @@ class MainW (QMainWindow, Ui_MainWindow):
             print(
                 f'Kameras fokusa attālumi (35mm ekvivalents) {fx:.1f} {fy:.1f}')
             print(f'Kameras ass pozīcija {cx:.1f} {cy:.1f}')
+            print(f'Distortion: k1={cldim.camera.camera_enu.k1:.6f}, k2={cldim.camera.camera_enu.k2:.6f}, k3={cldim.camera.camera_enu.k3:.6f}')
+            print(f'Projection: {cameraprojections.name_by_projection(cldim.camera.camera_enu.projection)}')
+            print(f'Projection: {type(cldim.camera.camera_enu.projection)}')
+
     @handle_exceptions(method_name="Camera calibration")
     def CalibrateCameraClick(self):
         if self.cloudimage is not None:
@@ -343,7 +347,6 @@ class MainW (QMainWindow, Ui_MainWindow):
             self.MplWidget1.canvas.initplot()
             ax = self.MplWidget1.canvas.ax
             plots.PlotAltAzGrid(self.cloudimage, ax=ax)
-            self.PrintCameraParameters()
             cldim = self.cloudimage
             # zvaigžņu koordinātes enu sistēmā, vienības attālumam
             enu_unit_coords = cldim.get_stars_enu_unit_coords()
@@ -839,29 +842,33 @@ class MainW (QMainWindow, Ui_MainWindow):
 
     @handle_exceptions(method_name="Camera modification")
     def CameraModification(self):
-        """Open camera modification parameters dialog"""
-        if self.cloudimage is not None and hasattr(self.cloudimage, 'camera'):
-            accepted, modified_params = show_camera_modification_dialog(
-                parent=self, 
-                camera=self.cloudimage.camera
-            )
+        """Open camera modification/creation parameters dialog"""
+        if self.cloudimage is None:
+            print('Nav ielādēts attēls - nepieciešams attēls kameras izveidei')
+            return
             
-            if accepted:
-                print('Kameras parametri modificēti:')
-                print(f'Fokusa attālumi: fx={modified_params["fx"]:.1f}, fy={modified_params["fy"]:.1f}')
-                print(f'Centra pozīcija: cx={modified_params["cx"]:.1f}, cy={modified_params["cy"]:.1f}')
-                print(f'Orientācija: az={modified_params["azimuth"]:.1f}°, el={modified_params["elevation"]:.1f}°, rot={modified_params["rotation"]:.1f}°')
-                print(f'Distorsija: k1={modified_params["k1"]:.6f}, k2={modified_params["k2"]:.6f}, k3={modified_params["k3"]:.6f}')
-                print(f'Projekcijas tips: {modified_params["projection"]}')
-                
-                # Refresh the display to show changes
-                if hasattr(self, 'MplWidget1') and hasattr(self.MplWidget1, 'canvas'):
-                    if hasattr(self.MplWidget1.canvas, 'ax'):
-                        self.DrawAltAzClick()
-            else:
-                print('Kameras parametru modificēšana atcelta')
+        existing_camera = getattr(self.cloudimage, 'camera', None)
+        
+        accepted, modified_params = show_camera_modification_dialog(
+            parent=self, 
+            camera=existing_camera,
+            cloudimage=self.cloudimage
+        )
+        
+        if accepted:
+            print('New camera parameters:')
+            self.PrintCameraParameters()
+            
+            # Update UI state to reflect camera changes (enable/disable menu items)
+            self.update_ui_state()
+            
+            # Refresh the display to show changes
+            if hasattr(self, 'MplWidget1') and hasattr(self.MplWidget1, 'canvas'):
+                if hasattr(self.MplWidget1.canvas, 'ax'):
+                    self.DrawAltAzClick()
         else:
-            print('Nav ielasīta kamera vai nav kalibrēta kamera modificēšanai')
+            action = 'izveide' if existing_camera is None else 'modificēšana'
+            print(f'Kameras {action} atcelta')
 
     @handle_exceptions(method_name="Saving projected image")
     def SaveProjectedImage(self, jpg=True):

@@ -131,10 +131,5 @@ def projection_by_name(name):
 		projection = ct.RectilinearProjection
 	return projection
 def name_by_projection(projection):
-	if type(projection) == StereographicProjection:
-		return 'stereographic'
-	elif type(projection) == EquirectangularProjection:
-		return 'equirectangular'
-	else:
-		return 'rectilinear'
+	return projection.__class__.__name__.lower()
 

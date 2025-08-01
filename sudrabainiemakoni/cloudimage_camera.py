@@ -119,6 +119,71 @@ class Camera:
         self.cloudImage = cloudImage
         self.camera_enu = None
         self.camera_ecef = None
+    
+    @classmethod
+    def from_manual_parameters(cls, cloudImage, fx, fy, cx, cy, azimuth, elevation, rotation, k1=0, k2=0, k3=0, projection='rectilinear'):
+        """
+        Create a camera from manually entered parameters without calibration.
+        
+        Args:
+            cloudImage: CloudImage object (needed for location and image dimensions)
+            fx, fy: Focal lengths in pixels
+            cx, cy: Camera center in pixels  
+            azimuth: Camera pointing azimuth in degrees (0=North)
+            elevation: Camera elevation angle in degrees (0=horizon, 90=zenith)
+            rotation: Camera roll rotation in degrees
+            k1, k2, k3: Distortion coefficients
+            projection: Projection type ('rectilinear', 'equirectangular', 'stereographic')
+            
+        Returns:
+            Camera instance with manually set parameters
+        """
+        # Create new camera instance
+        camera = cls(cloudImage)
+        
+        # Get image dimensions
+        image_size = (cloudImage.imagearray.shape[1], cloudImage.imagearray.shape[0])
+        
+        # Get projection class
+        projection_class = cameraprojections.projection_by_name(projection)
+        
+        # Estimate sensor size and focal length in mm for projection setup
+        # Use standard 35mm equivalent assumptions
+        sensor_size = (36, 24)  # Standard 35mm sensor size
+        focal_length_mm = fx * sensor_size[0] / image_size[0]  # Convert px to mm
+        
+        # Create camera_enu with manual parameters
+        camera.camera_enu = ct.Camera(
+            projection_class(focallength_mm=focal_length_mm, sensor=sensor_size, image=image_size),
+            ct.SpatialOrientation(elevation_m=0),
+            ct.BrownLensDistortion()
+        )
+        
+        # Set manual parameters
+        camera.camera_enu.focallength_x_px = fx
+        camera.camera_enu.focallength_y_px = fy
+        camera.camera_enu.center_x_px = cx
+        camera.camera_enu.center_y_px = cy
+        
+        # Set orientation (convert elevation to tilt: tilt = elevation + 90)
+        camera.camera_enu.heading_deg = azimuth
+        camera.camera_enu.tilt_deg = elevation + 90
+        camera.camera_enu.roll_deg = rotation
+        
+        # Set position
+        camera.camera_enu.pos_x_m = 0
+        camera.camera_enu.pos_y_m = 0
+        camera.camera_enu.elevation_m = 0
+        
+        # Set distortion parameters
+        camera.camera_enu.k1 = k1
+        camera.camera_enu.k2 = k2
+        camera.camera_enu.k3 = k3
+        
+        # Create ECEF camera from ENU camera
+        camera.camera_ecef = camera.camera_ecef_from_camera_enu(camera.camera_enu)
+        
+        return camera
         
     def __getstate__(self):
         state = {}
