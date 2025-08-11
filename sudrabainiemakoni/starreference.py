@@ -125,7 +125,7 @@ class StarReference:
         return name_input, 'name', None
     
     def __str__(self):
-        return f"{self.name}"
+        return f"{self.name} {self.pixelcoords}"
     
     def __repr__(self):
         if hasattr(self, 'altaz_coord') and self.altaz_coord is not None:

@@ -247,12 +247,12 @@ class StarDigitizer:
         if new_input is not None and new_input.strip():
             # Create a new StarReference with the new input
             new_star = StarReference(new_input, star_ref.pixelcoords.copy())
+            new_star.getSkyCoord()
             
             # Replace the old star in the collection
             if self.cloudimage is not None:
                 old_index = self.cloudimage.starReferences.index(star_ref)
                 self.cloudimage.starReferences[old_index] = new_star
-                
                 # Update point data
                 point['data'] = new_star
                 point['name'] = new_star.name
