@@ -23,7 +23,7 @@ def main():
     # Configuration
     image_id = 'js_202106210100'
     sample_data_dir = 'examples/SampleData'
-    output_dir = 'output'
+    output_dir = 'examples/output'
     
     # Create output directory
     os.makedirs(output_dir, exist_ok=True)
@@ -108,11 +108,27 @@ def main():
     plots.PlotReferencedImages(webmerc, [projected_image_hght],
                              camera_points=camera_points,
                              outputFileName=map_filename,
-                             lonmin=map_lonmin, lonmax=map_lonmax, 
+                             lonmin=map_lonmin, lonmax=map_lonmax,
                              latmin=map_latmin, latmax=map_latmax,
                              alpha=0.95)
     print(f"Georeferenced map saved as {map_filename}")
-    
+
+    # Step 13: Save as TIF using imageio
+    print("Step 13: Saving as TIF using imageio...")
+    tif_filename = os.path.join(output_dir, f'projected_{reproject_height}_{image_id}.tif')
+    webmerc.SaveImageTif(tif_filename)
+    print(f"TIF image saved as {tif_filename}")
+
+    # Step 14: Save as GeoTIFF using rasterio (if available)
+    print("Step 14: Saving as GeoTIFF using rasterio...")
+    try:
+        geotiff_filename = os.path.join(output_dir, f'projected_{reproject_height}_{image_id}_geo.tif')
+        webmerc.SaveGeoTiffRasterio(projected_image_hght, geotiff_filename)
+        print(f"GeoTIFF saved as {geotiff_filename}")
+    except ImportError as e:
+        print(f"Skipping GeoTIFF export: {e}")
+        print("Install with: pip install .[geotiff]")
+
     print("\nWorkflow completed successfully!")
     print(f"Output files saved in: {output_dir}/")
 

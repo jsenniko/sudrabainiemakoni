@@ -1,8 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
-import skimage
-import skimage.io
+import imageio.v3 as iio
 
 from sudrabainiemakoni.cloudimage import CloudImage
 from sudrabainiemakoni.cloudimage import WebMercatorImage
@@ -71,11 +70,11 @@ def doProcessing(args):
                 fnimage=os.path.splitext(args.reprojectedImage)[0]+f'_{height}'
                 if args.reprojectedImageFormat=='tif':
                     jgwext='.tfw'
-                    skimage.io.imsave(f'{fnimage}.tif', projected_image_hght)
+                    iio.imwrite(f'{fnimage}.tif', projected_image_hght)
                 else:
                     jgwext='.jgw'
                     projected_image_jpg =   projected_image_hght[:,:,0:3]
-                    skimage.io.imsave(f'{fnimage}.jpg', projected_image_jpg)
+                    iio.imwrite(f'{fnimage}.jpg', projected_image_jpg)
                 if args.reprojectedImageJGW:
                      webmerc.SaveJgw(f'{fnimage}{jgwext}')
 

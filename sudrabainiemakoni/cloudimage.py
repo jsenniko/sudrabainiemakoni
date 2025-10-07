@@ -6,8 +6,7 @@ import astropy.units as u
 import datetime, pytz
 import numpy as np
 import pandas as pd
-import skimage
-import skimage.io
+import imageio.v3 as iio
 import cameratransform as ct
 import pymap3d
 from sudrabainiemakoni import utils
@@ -95,7 +94,7 @@ class CloudImage:
     def LoadImage(self, reload = False):
         if not hasattr(self, 'xxx') or self.xxx is None or reload:
             print('Loading image:', os.path.split(self.filename)[1])
-            self.xxx = skimage.io.imread(self.filename)
+            self.xxx = iio.imread(self.filename)
     def imageArrayGrid(self):
         return np.meshgrid(np.arange(self.imagearray.shape[1]),np.arange(self.imagearray.shape[0]))
 

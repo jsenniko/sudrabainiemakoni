@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sudrabainiemakoni"
+version = "0.01"
+description = "Sudrabaino mākonu sinhronās novērošanas datu apstrādes rīki"
+authors = [
+    {name = "Juris Seņņikovs", email = "jsenniko@latnet.lv"}
+]
+dependencies = [
+    "numpy",
+    "pandas",
+    "scipy",
+    "pyproj",
+    "astropy<6",
+    "exifread",
+    "cameratransform==1.1",
+    "pymap3d",
+    "pykrige",
+    "simplekml",
+    "imageio"
+]
+requires-python = ">=3.7"
+
+[project.optional-dependencies]
+plotting = [
+    "matplotlib",
+    "tilemapbase"
+]
+utils = [
+    "scikit-image",
+    "Pillow"
+]
+geotiff = [
+    "rasterio"
+]
+
+[tool.setuptools]
+packages = ["sudrabainiemakoni"]
+zip-safe = false

@@ -1,7 +1,6 @@
 __author__ = 'Juris Seņņikovs'
 import datetime
 import exifread
-import skimage.color
 import numpy as np
 def dateFromExif(filename: str) -> datetime.datetime:
     f = open(filename, 'rb')
@@ -46,6 +45,8 @@ def getExifLatLon(filename):
     return latitude, longitude
 # gamma adjust funkciju paņēmu no savas raustīgo time-lapsu korekcijas (sk piem 2020.g. komētu time-lapses)
 def gamma_adjust(img_fixed, img_test):
+    import skimage.color
+    import skimage.exposure
     lthreshold=5
     l1=skimage.color.rgb2lab(img_fixed)[:,:,0]
     l1=l1[l1>lthreshold]
@@ -76,6 +77,7 @@ def adjust_gamma(imgarr):
     img_adjust=np.array(img_adjust)
     return img_adjust
 def get_bw_images(imgarr):
+    import skimage.color
     img_bw=[]
     for img in imgarr:
         img_bw.append(skimage.color.rgb2gray(img))

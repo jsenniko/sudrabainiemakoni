@@ -11,8 +11,8 @@ def mapOverlay(webmerc, projected_image_masked, projHeight, filename, saveimage=
     imagefile = f'{basename}.tif'
     kmlfile = f'{basename}.kml'
     if saveimage:
-        import skimage.io
-        skimage.io.imsave(imagefile, projected_image_masked)
+        import imageio.v3 as iio
+        iio.imwrite(imagefile, projected_image_masked)
     
     govr=kml.newgroundoverlay(name='Makoni projicēti')
     govr.latlonbox.west=webmerc.lon_grid.min()

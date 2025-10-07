@@ -101,14 +101,14 @@ class ProjectionImage(ABC):
                 f.write(str(l)+'\n')
     
     def SaveImageJpg(self, filename):
-        import skimage
+        import imageio.v3 as iio
         img = self.Fill_projectedImage()
-        skimage.io.imsave(filename, img)
-    
+        iio.imwrite(filename, img)
+
     def SaveImageTif(self, filename):
-        import skimage
+        import imageio.v3 as iio
         img = self.Fill_projectedImageMasked()
-        skimage.io.imsave(filename, img)
+        iio.imwrite(filename, img)
     
     def prepare_inverse_reproject_from_camera(self, height_km):
         i_grid, j_grid = self.cloudImage.imageArrayGrid()
