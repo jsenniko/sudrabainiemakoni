@@ -24,6 +24,11 @@ def isHeightRange(arg):
     except:
         pass
     raise argparse.ArgumentTypeError('Jāuzdod augstums, vai no,līdz,solis')
+def isHeightRangeOrHeightFile(arg):
+    try:
+        return isHeightRange(arg)
+    except:
+        return fileOk(arg,'.npy')
 
 def parse_arguments(argumentlist=None):
     parser = argparse.ArgumentParser(description="Sudrabaino mākoņu attēlu referencēšana")
@@ -84,5 +89,15 @@ def parse_arguments_heightmap(argumentlist=None):
     parser.add_argument('--mapBounds', type=str, action='store', default='15,30,56,62', help='lonmin,lonmax,latmin,latmax')
     args=parser.parse_args(argumentlist)
     return args
+# def parse_arguments_reproject(argumentlist=None):
+#     parser = argparse.ArgumentParser(description="Sudrabaino mākoņu projicēšana")
+#     parser.add_argument('--loadProject', type=str, action='store', help='No kurienes nolasīt projekta failu', required=True)
+#     parser.add_argument('--webMercParameters', type=str, action='store', default='15,33,57,63,0.5', help='lonmin,lonmax,latmin,latmax,horizontal_resolution_km', required=True)
+#     parser.add_argument('--mapBounds', type=str, action='store', default='15,30,56,62', help='lonmin,lonmax,latmin,latmax')
+#     parser.add_argument('--mapAlpha', type=float, action='store', default=0.8, help='')
+#     parser.add_argument('--reprojectHeight', type=isHeightRangeOrHeightFile, action='store', default=80, help='Sudrabaino mākoņu augstums, km', required=True)
+#     parser.add_argument('--doNotPrepareGeoreferenced',   action='store_false',  help='', dest='prepareGeoreferenced')
+#     args=parser.parse_args(argumentlist)
+#     return args
 #"argString = '--outputFi# le=test.111'\n",
 #"args = parser.parse_args(shlex.split(argString))"

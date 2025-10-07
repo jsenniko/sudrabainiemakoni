@@ -25,7 +25,7 @@ cartopy_proj=cartopy.crs.EquidistantConic(standard_parallels=(58, 61), central_l
 timezone = pytz.timezone('Europe/Riga')
 timezone_UTC = pytz.timezone('UTC')
 #lonmin, lonmax, latmin, latmax, horizontal_resolution_km = 14.0,34.0,56.0,62.0,0.25
-proj_bounds = 14.0,34.0,56.0,62.0,0.25
+proj_bounds = 14.0,34.0,55.0,62.0,0.25
 #map_lonmin, map_lonmax, map_latmin, map_latmax = 14.0,34.0,55.5,62.0
 map_bounds = 14.0,34.0,55.5,62.0
 dpi=300
@@ -54,7 +54,7 @@ def getProjectedImage_frame(projectionIm, filename):
 
 
 
-def init_plot(projectionIm, map_bounds =map_bounds, height=2160, aspect=3/2, alpha=0.85, dpi=dpi,
+def init_plot(projectionIm, map_bounds =map_bounds, height=2160, aspect=3/2, alpha=0.9, dpi=dpi,
               plot_latlon_gridlines=False,
               plot_xy_gridlines=True,
               plot_date_label=True,

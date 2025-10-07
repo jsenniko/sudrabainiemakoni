@@ -21,11 +21,12 @@ def check_latlon_file(filename_jpg):
         lat, lon = utils.getExifLatLon(filename_jpg)
         if lat is  None or lon is  None:
             slatlon = gui_string(caption='Platums,Garums')
-            try:
-                sl=slatlon.split(',')
-                lat, lon = float(sl[0]), float(sl[1])
-            except:
-                pass
+            if slatlon is not None:
+                try:
+                    sl=slatlon.split(',')
+                    lat, lon = float(sl[0]), float(sl[1])
+                except:
+                    pass
         print('AAA',lat,lon)
         if lat is not None and lon is not None:
             with open(latlonfile,'w') as f:

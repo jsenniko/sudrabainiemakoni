@@ -318,6 +318,8 @@ class CloudImage:
             enu = star.getENUUnitVector(self.altaz)
             if enu is not None:
                 enu_coords.append(enu)
+            else:
+                print(f'WARNING: star without coordinates {star}')
         
         if enu_coords:
             return np.array(enu_coords)
