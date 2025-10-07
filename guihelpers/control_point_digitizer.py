@@ -8,7 +8,12 @@ and height calculation.
 """
 
 import numpy as np
-from point_digitizer import MplPointDigitizer
+
+# Support both direct script execution and package import
+try:
+    from .point_digitizer import MplPointDigitizer
+except ImportError:
+    from point_digitizer import MplPointDigitizer
 
 
 class ControlPointDigitizer:

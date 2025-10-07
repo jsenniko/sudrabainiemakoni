@@ -36,7 +36,18 @@ utils = [
 geotiff = [
     "rasterio"
 ]
+gui = [
+    "PyQt5",
+    "matplotlib",
+    "tilemapbase"
+]
+
+[project.scripts]
+sudrabainie = "guihelpers.sudrabainie:main"
 
 [tool.setuptools]
-packages = ["sudrabainiemakoni"]
+packages = ["sudrabainiemakoni", "guihelpers"]
 zip-safe = false
+
+# Note: guihelpers is kept as a separate top-level package for backward compatibility
+# It can also be accessed as sudrabainiemakoni.gui in documentation

@@ -7,18 +7,34 @@ from PyQt5 import QtGui, QtCore
 import tilemapbase
 from sudrabainiemakoni.cloudimage import CloudImage, CloudImagePair, HeightMap
 from sudrabainiemakoni.cloudimage_camera import CameraCalibrationParams
-from guihelpers.camera_parameters import show_camera_parameters_dialog
-from guihelpers.camera_modification import show_camera_modification_dialog
-from guihelpers.settings import AppSettings
+
+# Support both direct script execution and package import
+try:
+    # Try relative imports first (package mode)
+    from .camera_parameters import show_camera_parameters_dialog
+    from .camera_modification import show_camera_modification_dialog
+    from .settings import AppSettings
+    from .smgui import Ui_MainWindow
+    from .qthelper import gui_fname, gui_save_fname, gui_string, file_dialog_manager
+    from . import smhelper
+    from .exceptions import handle_exceptions
+    from .star_digitizer import StarDigitizer
+    from .control_point_digitizer import ControlPointDigitizer
+except ImportError:
+    # Fall back to absolute imports (direct script execution)
+    from camera_parameters import show_camera_parameters_dialog
+    from camera_modification import show_camera_modification_dialog
+    from settings import AppSettings
+    from smgui import Ui_MainWindow
+    from qthelper import gui_fname, gui_save_fname, gui_string, file_dialog_manager
+    import smhelper
+    from exceptions import handle_exceptions
+    from star_digitizer import StarDigitizer
+    from control_point_digitizer import ControlPointDigitizer
+
 from sudrabainiemakoni.webmercatorimage import ProjectionImageWebMercator
 from sudrabainiemakoni.starreference import StarReference
 from sudrabainiemakoni import cameraprojections, plots, utils
-from smgui import Ui_MainWindow
-from qthelper import gui_fname, gui_save_fname, gui_string
-import smhelper
-from exceptions import handle_exceptions
-from star_digitizer import StarDigitizer
-from control_point_digitizer import ControlPointDigitizer
 
 
 class Stream(QtCore.QObject):
@@ -123,14 +139,12 @@ class MainW (QMainWindow, Ui_MainWindow):
     def load_settings_to_ui(self):
         """Load settings from app_settings into UI components"""
         # Set file dialog manager's last directory from settings
-        from qthelper import file_dialog_manager
         if self.app_settings.last_directory:
             file_dialog_manager.last_directory = self.app_settings.last_directory
 
     def save_ui_to_settings(self):
         """Save UI state to app_settings and persist to file"""
         # Save last directory from file dialog manager to settings
-        from qthelper import file_dialog_manager
         self.app_settings.last_directory = file_dialog_manager.last_directory
         self.app_settings.save_to_file()
 
@@ -895,8 +909,8 @@ class MainW (QMainWindow, Ui_MainWindow):
                     img = self.projected_image[1][:, :, 0:3]
                     # Save JPG with world file
                     wm.SaveJgw(jgwfile)
-                    import skimage.io
-                    skimage.io.imsave(projfile, img)
+                    import imageio.v3 as iio
+                    iio.imwrite(projfile, img)
                     print('Fails saglabāts:', projfile)
                 else:
                     img = self.projected_image[1]
@@ -907,8 +921,8 @@ class MainW (QMainWindow, Ui_MainWindow):
                     except (ImportError, Exception) as e:
                         # Fallback to old method if rasterio is not available or fails
                         wm.SaveJgw(jgwfile)
-                        import skimage.io
-                        skimage.io.imsave(projfile, img)
+                        import imageio.v3 as iio
+                        iio.imwrite(projfile, img)
                         if isinstance(e, ImportError):
                             print('TIFF fails ar world file saglabāts  (rasterio nav pieejams):', projfile)
                         else:
@@ -947,12 +961,34 @@ def excepthook(exc_type, exc_value, exc_tb):
     print("EXCEPTION CAUGHT:")
     print(tb)
 
-if __name__ == '__main__':
+def main():
+    """Main entry point for the GUI application."""
+    try:
+        from PyQt5.QtWidgets import QApplication
+    except ImportError:
+        print("ERROR: PyQt5 is not installed.")
+        print("Please install GUI dependencies with: pip install sudrabainiemakoni[gui]")
+        sys.exit(1)
 
     # Install the global exception handler
     sys.excepthook = excepthook
-    
-    app = QApplication(sys.argv)
-    myapp = MainW()    
-    myapp.show()
-    sys.exit(app.exec_())
+
+    try:
+        app = QApplication(sys.argv)
+        myapp = MainW()
+        myapp.show()
+        sys.exit(app.exec_())
+    except Exception as e:
+        import traceback
+        import os
+        error_log = os.path.join(os.path.dirname(__file__), 'sudrabainie_error.log')
+        with open(error_log, 'w') as f:
+            f.write("ERROR starting GUI application:\n")
+            f.write(traceback.format_exc())
+        print("ERROR starting GUI application:")
+        print(traceback.format_exc())
+        print(f"Error logged to: {error_log}")
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()

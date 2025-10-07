@@ -6,7 +6,12 @@ the generic point digitization capabilities of MplPointDigitizer.
 
 import numpy as np
 from sudrabainiemakoni.starreference import StarReference
-from point_digitizer import MplPointDigitizer
+
+# Support both direct script execution and package import
+try:
+    from .point_digitizer import MplPointDigitizer
+except ImportError:
+    from point_digitizer import MplPointDigitizer
 
 
 def gui_star_input(caption='Ievadi zvaigznes informāciju'):

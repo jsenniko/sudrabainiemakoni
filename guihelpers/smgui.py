@@ -227,7 +227,12 @@ class Ui_MainWindow(object):
         self.actionEpil_niju_augstums.setText(_translate("MainWindow", "Epilīniju augstums"))
         self.actionMainit_att_lu.setText(_translate("MainWindow", "Mainīt attēlu"))
         self.actionSaglab_t_augstumu_punktus_CSV.setText(_translate("MainWindow", "Saglabāt augstumu punktus CSV"))
-from mplwidget import MplWidget
+
+# Support both direct script execution and package import
+try:
+    from .mplwidget import MplWidget
+except ImportError:
+    from mplwidget import MplWidget
 
 
 if __name__ == "__main__":

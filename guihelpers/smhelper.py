@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
 import os, shutil
 from sudrabainiemakoni import utils
-from qthelper import gui_fname, gui_string
+
+# Support both direct script execution and package import
+try:
+    from .qthelper import gui_fname, gui_string
+except ImportError:
+    from qthelper import gui_fname, gui_string
 def check_latlon_file(filename_jpg):
     # garuma, platuma fails
     latlonfile=os.path.splitext(filename_jpg)[0]+'_latlon.txt'
