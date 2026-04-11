@@ -22,7 +22,7 @@ def gui_star_input(caption='Ievadi zvaigznes informāciju'):
     Returns:
         str: The input string or None if cancelled
     """
-    from qthelper import gui_string
+    from guihelpers.qthelper import gui_string
     
     full_caption = f"""{caption}
 Formāti:
@@ -40,29 +40,33 @@ class StarDigitizer:
     Provides enhanced star input, coordinate validation, and PyQt5 context menus.
     """
     
-    def __init__(self, ax, cloudimage, main_window=None, centroid_box_size=50):
+    def __init__(self, ax, cloudimage, main_window=None, centroid_box_size=50, catalog_overlay=None, residual_overlay=None):
         """
         Initialize the star digitizer.
-        
+
         Args:
             ax: matplotlib axes object
             cloudimage: CloudImage object containing star references
             main_window: main window reference for compatibility
             centroid_box_size: size of the box around original position for centroiding (default: 10 pixels)
+            catalog_overlay: Optional CatalogStarOverlay for auto-suggest functionality
+            residual_overlay: Optional ResidualOverlay for showing calibration residuals
         """
         self.cloudimage = cloudimage
         self.main_window = main_window
         self.centroid_box_size = centroid_box_size
-        
+        self.catalog_overlay = catalog_overlay
+        self.residual_overlay = residual_overlay
+
         # Create the underlying point digitizer
         self.point_digitizer = MplPointDigitizer(ax)
-        
+
         # Disable default context menu, use star-specific one
         self.point_digitizer.set_default_context_menu(False)
-        
+
         # Setup star-specific callbacks
         self._setup_callbacks()
-        
+
         # Track selected star for context menu operations
         self._selected_star_index = None
         
@@ -98,27 +102,99 @@ class StarDigitizer:
         """Load existing stars from cloudimage into the point digitizer."""
         if self.cloudimage is None:
             return
-            
+
         # Clear existing points
         self.point_digitizer.clear_all_points()
-        
+
         # Add each star as a point (non-interactive = loading from data)
         for star_ref in self.cloudimage.starReferences:
             x, y = star_ref.pixelcoords
             self.point_digitizer.add_point(x, y, star_ref.name, data=star_ref, interactive=False)
-        
+
         # Single redraw after loading all points
         self.point_digitizer.batch_redraw()
+
+        # Update residual overlay if available
+        self._update_residual_overlay()
+
+    def _update_residual_overlay(self):
+        """Update residual overlay with current calibration residuals."""
+        if self.residual_overlay is None:
+            return
+
+        if self.cloudimage is None or self.cloudimage.camera is None:
+            return
+
+        if len(self.cloudimage.starReferences) == 0:
+            return
+
+        # Calculate residuals from current camera calibration
+        residual_data = self.cloudimage.camera.calculate_residuals(
+            self.cloudimage.starReferences,
+            self.cloudimage.location,
+            self.cloudimage.date
+        )
+
+        if residual_data is None:
+            return
+
+        # Update overlay with new data
+        self.residual_overlay.set_residuals(
+            residual_data['star_pixel_coords'],
+            residual_data['model_pixel_coords']
+        )
     
     def _get_star_name(self, x, y):
-        """Get star name from user input."""
-        return gui_star_input('Ievadi zvaigznes vārdu')
-    
+        """Get star name from user input with optional auto-suggest from catalog."""
+        # Try to find nearby catalog star for auto-suggest
+        suggested_name = None
+        catalog_star = None
+        if self.catalog_overlay is not None:
+            print(f"Checking for catalog stars near ({x:.1f}, {y:.1f})...")
+            nearest = self.catalog_overlay.find_nearest_star(x, y, max_distance=100)
+            if nearest is not None:
+                suggested_name = nearest['name']
+                catalog_star = nearest
+                print(f"Catalog suggestion: {suggested_name} (mag {nearest['mag']:.1f}, distance {nearest['distance']:.1f}px)")
+            else:
+                print(f"No catalog star found within 100px of ({x:.1f}, {y:.1f})")
+        else:
+            print("No catalog overlay available for auto-suggest")
+
+        # Show input dialog with pre-filled suggestion if available
+        from guihelpers.qthelper import gui_string
+        if suggested_name:
+            # Build full caption with format help text
+            full_caption = f"""Ievadi zvaigznes vārdu (suggestion: {suggested_name})
+Formāti:
+• Zvaigznes vārds: Sirius, Polaris
+• Alt-Az (grādi): 120.5,45.2  (azimuts,augstums)
+• RA/DEC (grādi): ra:83.633,22.014
+Ievadi:"""
+            user_input = gui_string(text=suggested_name, caption=full_caption)
+            return user_input, catalog_star
+        else:
+            user_input = gui_star_input('Ievadi zvaigznes vārdu')
+            return user_input, None
+
     def _create_star_reference(self, x, y):
         """Create a StarReference object with complex validation logic."""
-        input_text = self._get_star_name(x, y)
-        
+        input_text, catalog_star = self._get_star_name(x, y)
+
         if input_text is not None and self.cloudimage is not None:
+            # Check if user accepted a catalog star suggestion
+            if catalog_star is not None and input_text == catalog_star['name']:
+                # User accepted catalog star - use RA/DEC coordinates
+                sr = StarReference(
+                    f"ra:{catalog_star['ra']:.6f},{catalog_star['dec']:.6f}",
+                    [x, y]
+                )
+                # Override the display name to use catalog name
+                sr.name = catalog_star['name']
+                print(f"Pievienota kataloga zvaigzne: {sr.name} (RA/DEC)")
+                return sr
+
+            # User modified the name or didn't use catalog suggestion
             # Create StarReference with automatic coordinate parsing
             sr = StarReference(input_text, [x, y])
 
@@ -140,14 +216,14 @@ class StarDigitizer:
                     print(f"Atpazīta zvaigzne: {sr.name}")
                 except Exception as e:
                     print(f"Nevarēja atpazīt zvaigzni: {e}")
-                    from qthelper import gui_string
+                    from guihelpers.qthelper import gui_string
                     Ok = gui_string(caption='Neatpazīst zvaigzni, vai ievadīt?') is not None
                     if Ok:
                         print(f"Pievienota neatpazīta zvaigzne: {sr.name}")
-            
+
             if Ok:
                 return sr
-        
+
         return None
     
     def _on_star_added(self, point_index, point):
@@ -285,7 +361,7 @@ class StarDigitizer:
             
         current_x, current_y = star_ref.pixelcoords
         
-        from qthelper import gui_string
+        from guihelpers.qthelper import gui_string
         
         # Get new pixel coordinates
         coord_input = gui_string(
@@ -336,7 +412,7 @@ class StarDigitizer:
             
         star_name = star_ref.name
         
-        from qthelper import gui_confirm
+        from guihelpers.qthelper import gui_confirm
         
         # Confirm deletion
         confirm = gui_confirm(
@@ -352,7 +428,7 @@ class StarDigitizer:
         """Save stars to file when digitization stops."""
         self.main_window.isDigitizeStars = None
         if self.cloudimage is not None:
-            from qthelper import gui_save_fname
+            from guihelpers.qthelper import gui_save_fname
             import os
             
             filename_stars = os.path.splitext(self.cloudimage.filename)[0]+'_zvaigznes.txt'

@@ -10,11 +10,22 @@ import astropy.units
 from sudrabainiemakoni import labelatedge
 from sudrabainiemakoni.cloudimage import CloudImage, WebMercatorImage
 from sudrabainiemakoni.calculations import GetImageRaDecGrid
-def PlotStars(cloudImage: CloudImage, ax):
+def PlotStars(cloudImage: CloudImage, ax, show_circles=True, show_names=True):
+    """
+    Plot star references on the axes.
+
+    Args:
+        cloudImage: CloudImage object containing star references
+        ax: matplotlib axes
+        show_circles: Show star position circles (default True)
+        show_names: Show star name labels (default True)
+    """
     for sr in cloudImage.starReferences:
         ix, iy = sr.pixelcoords
-        ax.plot(ix,iy, marker='o', fillstyle='none')
-        ax.annotate(sr.name, xy=(ix,iy), xytext=(3,3), color='#AAFFAA', fontsize=16, textcoords='offset pixels')
+        if show_circles:
+            ax.plot(ix, iy, marker='o', fillstyle='none')
+        if show_names:
+            ax.annotate(sr.name, xy=(ix, iy), xytext=(3, 3), color='#AAFFAA', fontsize=16, textcoords='offset pixels')
 
 def PlotAllStars(cloudImage: CloudImage, outImageDir = None, showplot=True):
     fig, ax = plt.subplots(figsize=(20,10))

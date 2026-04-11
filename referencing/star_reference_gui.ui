@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1146</width>
+    <height>872</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Zvaigžņu referencēšanas programma</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="QSplitter" name="splitter">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <widget class="MplWidget" name="MplWidget1" native="true">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>600</height>
+        </size>
+       </property>
+      </widget>
+      <widget class="QPlainTextEdit" name="console">
+       <property name="font">
+        <font>
+         <family>Consolas</family>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1146</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFails">
+    <property name="title">
+     <string>Fails</string>
+    </property>
+    <addaction name="actionIelas_t_att_lu"/>
+    <addaction name="actionMainit_att_lu"/>
+    <addaction name="separator"/>
+    <addaction name="actionIelas_t_projektu"/>
+    <addaction name="actionSaglab_t_projektu"/>
+    <addaction name="separator"/>
+    <addaction name="actionIelas_t_kameru"/>
+    <addaction name="actionSaglab_t_kameru"/>
+   </widget>
+   <widget class="QMenu" name="menuDarb_bas">
+    <property name="title">
+     <string>Zīmēt</string>
+    </property>
+    <addaction name="actionAtt_lu"/>
+    <addaction name="separator"/>
+    <addaction name="actionHorizont_lo_koordin_tu_re_is"/>
+   </widget>
+   <widget class="QMenu" name="menuZ_m_t">
+    <property name="title">
+     <string>Darbības</string>
+    </property>
+    <addaction name="actionCiparot_zvaigznes"/>
+    <addaction name="separator"/>
+    <addaction name="actionKalibr_t_kameru"/>
+    <addaction name="separator"/>
+    <addaction name="actionKameras_kalibr_cijas_parametri"/>
+    <addaction name="actionKameras_modifikacija"/>
+    <addaction name="separator"/>
+    <addaction name="actionUzst_d_t_datumu"/>
+    <addaction name="actionUzst_d_t_platumu_garumu_augstumu"/>
+   </widget>
+   <addaction name="menuFails"/>
+   <addaction name="menuZ_m_t"/>
+   <addaction name="menuDarb_bas"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionIelas_t_att_lu">
+   <property name="text">
+    <string>Ielasīt attēlu</string>
+   </property>
+  </action>
+  <action name="actionMainit_att_lu">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Mainīt attēlu</string>
+   </property>
+  </action>
+  <action name="actionIelas_t_projektu">
+   <property name="text">
+    <string>Ielasīt projektu</string>
+   </property>
+  </action>
+  <action name="actionSaglab_t_projektu">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Saglabāt projektu</string>
+   </property>
+  </action>
+  <action name="actionIelas_t_kameru">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Ielasīt kameru</string>
+   </property>
+  </action>
+  <action name="actionSaglab_t_kameru">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Saglabāt kameru</string>
+   </property>
+  </action>
+  <action name="actionAtt_lu">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Attēls</string>
+   </property>
+  </action>
+  <action name="actionHorizont_lo_koordin_tu_re_is">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Horizontālo koordinātu režģis</string>
+   </property>
+  </action>
+  <action name="actionCiparot_zvaigznes">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Ciparot zvaigznes</string>
+   </property>
+  </action>
+  <action name="actionKalibr_t_kameru">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Kalibrēt kameru</string>
+   </property>
+  </action>
+  <action name="actionKameras_kalibr_cijas_parametri">
+   <property name="text">
+    <string>Kameras kalibrācijas parametri</string>
+   </property>
+  </action>
+  <action name="actionKameras_modifikacija">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Modificēt kameras parametrus</string>
+   </property>
+  </action>
+  <action name="actionUzst_d_t_datumu">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Uzstādīt datumu</string>
+   </property>
+  </action>
+  <action name="actionUzst_d_t_platumu_garumu_augstumu">
+   <property name="text">
+    <string>Uzstādīt platumu, garumu, augstumu</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>MplWidget</class>
+   <extends>QWidget</extends>
+   <header>guihelpers.mplwidget</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

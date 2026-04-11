@@ -12,7 +12,7 @@ import pymap3d
 from sudrabainiemakoni import utils
 from sudrabainiemakoni import geoutils
 from sudrabainiemakoni import calculations
-from sudrabainiemakoni.starreference import StarReference
+from sudrabainiemakoni.starreference import StarReference, get_stars_enu_unit_coords
 from sudrabainiemakoni.cloudimage_camera import Camera
 import cameraprojections
 
@@ -67,11 +67,13 @@ class CloudImage:
                     d.filename = test
             print(f'Image does not exist {d.filename}')
         #d.LoadCamera(filename)
-        
-        # Fix camera reference after pickle loading
+
+        # Fix Camera image_size if missing (for backward compatibility with old pickle files)
         if hasattr(d, 'camera') and d.camera is not None:
-            d.camera.cloudImage = d
-        
+            if not hasattr(d.camera, 'image_size') or d.camera.image_size is None:
+                d.camera.image_size = (d.imagearray.shape[1], d.imagearray.shape[0])
+                print(f'Restored Camera.image_size from image array: {d.camera.image_size}')
+
         return d
 
     def __init__(self, code, filename):
@@ -198,18 +200,37 @@ class CloudImage:
             'ix': [r.pixelcoords[0] for r in self.starReferences],
             'iy': [r.pixelcoords[1] for r in self.starReferences]
         }
-        
-        # Check if any stars have Alt-Az coordinates
+
+        # Check if any stars have Alt-Az or RA/DEC coordinates
         has_altaz = any(r.hasDirectAltAz() for r in self.starReferences)
-        
-        if has_altaz:
-            # Include Alt-Az coordinates and source information
-            data['az'] = [r.altaz_coord.az.deg if r.hasDirectAltAz() else np.nan 
-                         for r in self.starReferences]
-            data['alt'] = [r.altaz_coord.alt.deg if r.hasDirectAltAz() else np.nan 
-                          for r in self.starReferences]
-            data['coord_source'] = ['altaz' if r.hasDirectAltAz() else 'name' 
-                                   for r in self.starReferences]
+        has_radec = any(r.hasDirectRADEC() for r in self.starReferences)
+
+        if has_altaz or has_radec:
+            # Include Alt-Az coordinates if present
+            if has_altaz:
+                data['az'] = [r.altaz_coord.az.deg if r.hasDirectAltAz() else np.nan
+                             for r in self.starReferences]
+                data['alt'] = [r.altaz_coord.alt.deg if r.hasDirectAltAz() else np.nan
+                              for r in self.starReferences]
+
+            # Include RA/DEC coordinates if present
+            if has_radec:
+                data['ra'] = [r.skycoord.ra.deg if r.hasDirectRADEC() else np.nan
+                             for r in self.starReferences]
+                data['dec'] = [r.skycoord.dec.deg if r.hasDirectRADEC() else np.nan
+                              for r in self.starReferences]
+
+            # Determine coordinate source for each star
+            coord_sources = []
+            for r in self.starReferences:
+                if r.hasDirectAltAz():
+                    coord_sources.append('altaz')
+                elif r.hasDirectRADEC():
+                    coord_sources.append('radec')
+                else:
+                    coord_sources.append('name')
+            data['coord_source'] = coord_sources
+
             # Save with headers for new format
             df = pd.DataFrame(data)
             df.to_csv(filename, sep='\t', header=True, index=False)
@@ -234,20 +255,33 @@ class CloudImage:
                 self.starReferences = []
                 for _, row in df.iterrows():
                     altaz_coord = None
-                    
+
                     # Check if we have Alt-Az coordinates
                     if 'az' in row and 'alt' in row and not pd.isna(row['az']) and not pd.isna(row['alt']):
                         altaz_coord = astropy.coordinates.AltAz(
                             az=row['az'] * u.deg,
                             alt=row['alt'] * u.deg
                         )
-                    
-                    star = StarReference(row['name'], [row['ix'], row['iy']], altaz_coord)
+
+                    # Check if we have RA/DEC coordinates (prioritize over name resolution)
+                    if 'ra' in row and 'dec' in row and not pd.isna(row['ra']) and not pd.isna(row['dec']):
+                        # Create StarReference with RA/DEC coordinates
+                        star = StarReference(
+                            f"ra:{row['ra']:.6f},{row['dec']:.6f}",
+                            [row['ix'], row['iy']],
+                            altaz_coord
+                        )
+                        # Override the display name to use the saved name
+                        star.name = row['name']
+                    else:
+                        # Create StarReference with name (old behavior)
+                        star = StarReference(row['name'], [row['ix'], row['iy']], altaz_coord)
+
                     self.starReferences.append(star)
-                
-                # Resolve RA/DEC coordinates for stars that don't have Alt-Az
+
+                # Resolve RA/DEC coordinates for stars that don't have Alt-Az or RA/DEC
                 for star in self.starReferences:
-                    if not star.hasDirectAltAz():
+                    if not star.hasDirectAltAz() and not star.hasDirectRADEC():
                         star.getSkyCoord()
             else:
                 # Old format without headers - assume columns are name, ix, iy
@@ -281,10 +315,19 @@ class CloudImage:
 
 
     def PrepareCamera(self, **params):
-        self.camera = Camera(self)
-        self.camera.Fit(**params)
+        image_size = (self.imagearray.shape[1], self.imagearray.shape[0])
+        self.camera = Camera(image_size)
+
+        # Extract focal length from EXIF if not provided in params
+        if 'focallength_35mm' not in params:
+            focallength = utils.getExifEquivalentFocalLength35mm(self.filename)
+            if focallength is not None and focallength > 0.0:
+                params['focallength_35mm'] = focallength
+
+        self.camera.Fit(self.starReferences, self.location, self.date, **params)
     def LoadCamera(self, filename):
-        self.camera = Camera(self)
+        image_size = (self.imagearray.shape[1], self.imagearray.shape[0])
+        self.camera = Camera(image_size)
         self.camera.load(filename)
     def SaveCamera(self, filename):
         self.camera.save(filename)
@@ -309,21 +352,8 @@ class CloudImage:
         direction = np.array([(p2.x-p.location.x).value,(p2.y-p.location.y).value,(p2.z-p.location.z).value])/(d)
         return direction
 
-    def get_stars_enu_unit_coords(self):
-        enu_coords = []
-        
-        for star in self.starReferences:
-            # Try to get ENU coordinates from each star
-            enu = star.getENUUnitVector(self.altaz)
-            if enu is not None:
-                enu_coords.append(enu)
-            else:
-                print(f'WARNING: star without coordinates {star}')
-        
-        if enu_coords:
-            return np.array(enu_coords)
-        else:
-            return np.array([])
+    def get_stars_enu_unit_coords(self, refraction_correction=True):
+        return get_stars_enu_unit_coords(self.starReferences, self.altaz, refraction_correction=refraction_correction)
 class Reprojector_to_Camera:
     def __init__(self, cldim: CloudImage, camera_ecef):
         self.cloudImage = cldim

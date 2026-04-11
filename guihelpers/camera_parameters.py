@@ -77,7 +77,9 @@ class CameraParametersDialog(QtWidgets.QDialog):
         """Setup helpful tooltips for UI elements"""
         self.comboBox_distortion.setToolTip(
             "Higher order corrections handle more complex lens distortions\n"
-            "but may overfit with insufficient reference points."
+            "but may overfit with insufficient reference points.\n\n"
+            "Order 4 includes tangential distortion (p1, p2) which accounts\n"
+            "for lens elements not being perfectly parallel."
         )
         
         self.comboBox_projection.setToolTip(

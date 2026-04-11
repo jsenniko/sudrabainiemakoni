@@ -9,6 +9,23 @@ import astropy.units as u
 import pymap3d
 
 
+def apply_atmospheric_refraction_correction(alt_deg):
+    """
+    Apply atmospheric refraction correction to altitude angle.
+
+    This correction accounts for the bending of light through Earth's atmosphere,
+    which causes celestial objects to appear slightly higher than their true position.
+    The formula is based on Bennett's empirical refraction formula.
+
+    Args:
+        alt_deg: Altitude angle(s) in degrees (scalar or array)
+
+    Returns:
+        Corrected altitude angle(s) in degrees
+    """
+    return alt_deg + 0.01666 / np.tan(np.radians(alt_deg + (7.31 / (alt_deg + 4.4))))
+
+
 class StarReference:
     """
     A reference point representing a star in an astronomical image.
@@ -189,6 +206,10 @@ class StarReference:
     def hasDirectAltAz(self):
         """Check if this star has direct Alt-Az coordinates (not derived from RA/DEC)"""
         return hasattr(self, 'altaz_coord') and self.altaz_coord is not None
+
+    def hasDirectRADEC(self):
+        """Check if this star has RA/DEC coordinates (skycoord)"""
+        return self.skycoord is not None
     
     def setAltAzCoord(self, az_deg, alt_deg):
         """Set Alt-Az coordinates directly"""
@@ -197,20 +218,55 @@ class StarReference:
             alt=alt_deg * u.deg
         )
     
-    def getENUUnitVector(self, altaz_frame=None):
+    def getENUUnitVector(self, altaz_frame=None, refraction_correction=True):
         """
         Get ENU unit vector for this star.
         This is used by get_stars_enu_unit_coords.
-        
+
         Args:
             altaz_frame: astropy.coordinates.AltAz frame (needed if converting from RA/DEC)
-            
+            refraction_correction: Apply atmospheric refraction correction (default True)
+
         Returns:
             numpy array [east, north, up] or None if coordinates not available
         """
         altaz_coord = self.getAltAzCoord(altaz_frame)
         if altaz_coord is not None:
-            enu = pymap3d.aer2enu(altaz_coord.az.value, altaz_coord.alt.value, 1)
+            alt_deg = altaz_coord.alt.value
+
+            # Apply atmospheric refraction correction if requested
+            if refraction_correction:
+                alt_deg = apply_atmospheric_refraction_correction(alt_deg)
+
+            enu = pymap3d.aer2enu(altaz_coord.az.value, alt_deg, 1)
             return np.array(enu)
         return None
+
+
+def get_stars_enu_unit_coords(star_references: list[StarReference], altaz_frame, refraction_correction=True):
+    """
+    Extract ENU unit vectors from a list of star references.
+
+    Args:
+        star_references: List of StarReference objects
+        altaz_frame: astropy.coordinates.AltAz frame for coordinate transformation
+        refraction_correction: Apply atmospheric refraction correction (default True)
+
+    Returns:
+        numpy array of shape (n_stars, 3) with ENU unit vectors, or empty array if no valid stars
+    """
+    enu_coords = []
+
+    for star in star_references:
+        # Try to get ENU coordinates from each star
+        enu = star.getENUUnitVector(altaz_frame, refraction_correction=refraction_correction)
+        if enu is not None:
+            enu_coords.append(enu)
+        else:
+            print(f'WARNING: star without coordinates {star}')
+
+    if enu_coords:
+        return np.array(enu_coords)
+    else:
+        return np.array([])
 

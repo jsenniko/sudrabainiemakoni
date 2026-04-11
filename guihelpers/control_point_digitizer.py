@@ -495,7 +495,7 @@ class ControlPointDigitizer:
             self.main_window.isDigitizeControlPoints = None
         
         if self.cloudimage_pair is not None:
-            from qthelper import gui_save_fname
+            from guihelpers.qthelper import gui_save_fname
             import os
             
             # Create default filename
@@ -526,7 +526,7 @@ class ControlPointDigitizer:
     
     def _delete_correspondence_pair(self, correspondence_idx):
         """Delete an entire correspondence pair with confirmation."""
-        from qthelper import gui_confirm
+        from guihelpers.qthelper import gui_confirm
         
         confirm = gui_confirm(
             caption=f"Delete correspondence pair {correspondence_idx + 1}?"

@@ -83,6 +83,9 @@ class CameraModificationDialog(QtWidgets.QDialog):
         
         # Focal length locking checkbox
         self.checkBox_lock_focal.stateChanged.connect(self.on_focal_lock_changed)
+
+        # Tangential distortion checkbox
+        self.checkBox_use_tangential.stateChanged.connect(self.on_tangential_checkbox_changed)
     
     def setup_tooltips(self):
         """Setup helpful tooltips for UI elements"""
@@ -96,6 +99,9 @@ class CameraModificationDialog(QtWidgets.QDialog):
         self.doubleSpinBox_k1.setToolTip("First-order radial distortion coefficient")
         self.doubleSpinBox_k2.setToolTip("Second-order radial distortion coefficient")
         self.doubleSpinBox_k3.setToolTip("Third-order radial distortion coefficient")
+        self.checkBox_use_tangential.setToolTip("Enable tangential distortion (p1, p2) for lenses with non-parallel elements")
+        self.doubleSpinBox_p1.setToolTip("First tangential distortion coefficient")
+        self.doubleSpinBox_p2.setToolTip("Second tangential distortion coefficient")
         self.comboBox_projection.setToolTip(
             "Camera projection model:\n"
             "• Rectilinear: Standard perspective cameras\n"
@@ -162,12 +168,20 @@ class CameraModificationDialog(QtWidgets.QDialog):
             k1 = getattr(self.camera.camera_enu, 'k1', 0.0)
             k2 = getattr(self.camera.camera_enu, 'k2', 0.0)
             k3 = getattr(self.camera.camera_enu, 'k3', 0.0)
-            
-            self.original_params.update({'k1': k1, 'k2': k2, 'k3': k3})
-            
+            p1 = getattr(self.camera.camera_enu, 'p1', 0.0)
+            p2 = getattr(self.camera.camera_enu, 'p2', 0.0)
+
+            self.original_params.update({'k1': k1, 'k2': k2, 'k3': k3, 'p1': p1, 'p2': p2})
+
             self.doubleSpinBox_k1.setValue(k1)
             self.doubleSpinBox_k2.setValue(k2)
             self.doubleSpinBox_k3.setValue(k3)
+            self.doubleSpinBox_p1.setValue(p1)
+            self.doubleSpinBox_p2.setValue(p2)
+
+            # Set tangential checkbox based on whether p1 or p2 is non-zero
+            use_tangential = (abs(p1) > 1e-9 or abs(p2) > 1e-9)
+            self.checkBox_use_tangential.setChecked(use_tangential)
             
             # Get projection type
             projection_name = type(self.camera.camera_enu.projection).__name__.lower()
@@ -227,6 +241,9 @@ class CameraModificationDialog(QtWidgets.QDialog):
         self.doubleSpinBox_k1.setValue(0.0)
         self.doubleSpinBox_k2.setValue(0.0)
         self.doubleSpinBox_k3.setValue(0.0)
+        self.doubleSpinBox_p1.setValue(0.0)
+        self.doubleSpinBox_p2.setValue(0.0)
+        self.checkBox_use_tangential.setChecked(False)
         self.comboBox_projection.setCurrentIndex(0)
     
     def reset_to_current(self):
@@ -340,6 +357,22 @@ class CameraModificationDialog(QtWidgets.QDialog):
                     self.doubleSpinBox_fy_mm.setValue(fx_mm_value)
                 finally:
                     self._updating_locked_focal = False
+
+    def on_tangential_checkbox_changed(self, state):
+        """Handle tangential distortion checkbox state change"""
+        is_enabled = (state == 2)  # Qt.Checked
+
+        # Enable/disable tangential distortion controls
+        self.label_tangential.setEnabled(is_enabled)
+        self.label_p1.setEnabled(is_enabled)
+        self.label_p2.setEnabled(is_enabled)
+        self.doubleSpinBox_p1.setEnabled(is_enabled)
+        self.doubleSpinBox_p2.setEnabled(is_enabled)
+
+        # Reset values when disabling
+        if not is_enabled:
+            self.doubleSpinBox_p1.setValue(0.0)
+            self.doubleSpinBox_p2.setValue(0.0)
     
     def get_modified_parameters(self) -> dict:
         """
@@ -361,6 +394,9 @@ class CameraModificationDialog(QtWidgets.QDialog):
             'k1': self.doubleSpinBox_k1.value(),
             'k2': self.doubleSpinBox_k2.value(),
             'k3': self.doubleSpinBox_k3.value(),
+            'p1': self.doubleSpinBox_p1.value() if self.checkBox_use_tangential.isChecked() else 0.0,
+            'p2': self.doubleSpinBox_p2.value() if self.checkBox_use_tangential.isChecked() else 0.0,
+            'use_tangential': self.checkBox_use_tangential.isChecked(),
             'projection': projection_types[self.comboBox_projection.currentIndex()]
         }
     
@@ -389,15 +425,25 @@ class CameraModificationDialog(QtWidgets.QDialog):
             
             # Apply distortion parameters directly to camera_enu
             self.camera.camera_enu.k1 = params['k1']
-            self.camera.camera_enu.k2 = params['k2']  
+            self.camera.camera_enu.k2 = params['k2']
             self.camera.camera_enu.k3 = params['k3']
+
+            # Apply tangential distortion if supported
+            if hasattr(self.camera.camera_enu.lens, 'p1'):
+                self.camera.camera_enu.p1 = params['p1']
+                self.camera.camera_enu.p2 = params['p2']
+            elif params['use_tangential'] and (abs(params['p1']) > 1e-9 or abs(params['p2']) > 1e-9):
+                print("Warning: Current distortion model does not support tangential distortion (p1, p2)")
             
             # Apply projection type (requires recreating camera with new projection)
             if params['projection'] != self.original_params.get('projection', 'rectilinear'):
                 print(f"Note: Projection type change to {params['projection']} requires camera recalibration")
-            
+
             # Update the ECEF camera using the proper method
-            self.camera.camera_ecef = self.camera.camera_ecef_from_camera_enu(self.camera.camera_enu)
+            if self.cloudimage is not None:
+                self.camera.camera_ecef = self.camera.camera_ecef_from_camera_enu(self.camera.camera_enu, self.cloudimage.location)
+            else:
+                print("Warning: Cannot update ECEF camera without cloudimage location")
 
             return True
             
@@ -433,7 +479,13 @@ class CameraModificationDialog(QtWidgets.QDialog):
         for k_name, k_val in [('k1', params['k1']), ('k2', params['k2']), ('k3', params['k3'])]:
             if abs(k_val) > 1.0:
                 return False, f"Distortion coefficient {k_name} seems too large (|{k_name}| > 1.0)"
-        
+
+        # Validate tangential distortion coefficients if enabled
+        if params.get('use_tangential', False):
+            for p_name, p_val in [('p1', params['p1']), ('p2', params['p2'])]:
+                if abs(p_val) > 0.1:
+                    return False, f"Tangential distortion coefficient {p_name} seems too large (|{p_name}| > 0.1)"
+
         return True, ""
     
     def accept(self):
@@ -498,13 +550,15 @@ class CameraModificationDialog(QtWidgets.QDialog):
         """
         try:
             from sudrabainiemakoni.cloudimage_camera import Camera
-            
+
             params = self.get_modified_parameters()
-            
+
+            image_size = (cloudImage.imagearray.shape[1], cloudImage.imagearray.shape[0])
             camera = Camera.from_manual_parameters(
-                cloudImage=cloudImage,
+                image_size=image_size,
+                location=cloudImage.location,
                 fx=params['fx'],
-                fy=params['fy'], 
+                fy=params['fy'],
                 cx=params['cx'],
                 cy=params['cy'],
                 azimuth=params['azimuth'],
@@ -513,6 +567,8 @@ class CameraModificationDialog(QtWidgets.QDialog):
                 k1=params['k1'],
                 k2=params['k2'],
                 k3=params['k3'],
+                p1=params.get('p1', 0.0),
+                p2=params.get('p2', 0.0),
                 projection=params['projection']
             )
             

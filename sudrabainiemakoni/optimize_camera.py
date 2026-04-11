@@ -1,7 +1,8 @@
 import numpy as np
 import scipy.optimize
 from scipy.spatial.transform import Rotation
-import cameraprojections
+from sudrabainiemakoni import cameraprojections
+from sudrabainiemakoni.lensdistortions import BrownLensDistortionLimited, distortion_by_name, name_by_distortion
 
 def Rotation_fromOrientation(obj):
     return Rotation.from_euler('ZXZ', [ -obj.roll_deg,-obj.tilt_deg, obj.heading_deg ], degrees=True)
@@ -32,7 +33,9 @@ def GetTestPxls(space_coords, pxls, fx, fy, cx, cy):
 def ResFOV(x, space_coords, pxls):
     test_pxls, rotmatr = GetTestPxls(space_coords, pxls, x[0], x[1], x[2], x[3])
     return np.sqrt(np.mean((test_pxls-pxls)**2))
-def ResFOVCamera(x, camera, space_coords, pxls, distortion=3, focallength = True, centers=True, separate_x_y=True, fixed_rotation=False):
+def ResFOVCamera(x, camera, space_coords, pxls, distortion=3, focallength = True, 
+                 centers=True, separate_x_y=True, fixed_rotation=False,
+                 ):
     """
     camera - cameratransform.camera
     """
@@ -63,26 +66,42 @@ def ResFOVCamera(x, camera, space_coords, pxls, distortion=3, focallength = True
         camera.roll_deg=angles['roll_deg']
         camera.tilt_deg=angles['tilt_deg']
         camera.heading_deg=angles['heading_deg']
-    if distortion>0:
+
+    # Handle radial distortion (k1, k2, k3)
+    if distortion>=1:
         camera.k1=x[n]
-        if distortion>1:
-            camera.k2=x[n+1]
-            if distortion>2:
-                camera.k3=x[n+2]
-        
+        n=n+1
+        if distortion>=2:
+            camera.k2=x[n]
+            n=n+1
+            if distortion>=3:
+                camera.k3=x[n]
+                n=n+1
+
+    # Handle tangential distortion (p1, p2) for distortion>=4
+    if distortion>=4:
+        camera.p1=x[n]
+        n=n+1
+        camera.p2=x[n]
+        n=n+1
+
     test_pxls = camera.imageFromSpace(space_coords, hide_backpoints=False)
     return np.sqrt(np.mean((test_pxls-pxls)**2))
-def reload_camera(camera):
+
+
+def reload_camera(camera, distortion_class = BrownLensDistortionLimited):
     import cameratransform as ct
+
     keys = camera.parameters.parameters.keys()
     variables = {key: getattr(camera, key) for key in keys}
-    camnew = ct.Camera(type(camera.projection)(), ct.SpatialOrientation(),  ct.BrownLensDistortion())
+    camnew = ct.Camera(type(camera.projection)(), ct.SpatialOrientation(),  distortion_class())
     for key in variables:
         setattr(camnew, key, variables[key])
     return camnew
 # fix loading bug of cameratransform v1.1
 def load_camera(filename):
     import cameratransform as ct
+
     import json
     with open(filename, "r") as fp:
         variables = json.loads(fp.read())
@@ -90,8 +109,8 @@ def load_camera(filename):
         projection = cameraprojections.projection_by_name(variables['projectiontype'])
     else:
         projection = ct.RectilinearProjection
-
-    camera = ct.Camera(projection(), ct.SpatialOrientation(),  ct.BrownLensDistortion())    
+    distortion = distortion_by_name(variables.get('distortiontype', None))
+    camera = ct.Camera(projection(), ct.SpatialOrientation(),  distortion())    
     camera.load(filename)
     return camera
 def save_camera(camera, filename):
@@ -100,11 +119,28 @@ def save_camera(camera, filename):
     keys = camera.parameters.parameters.keys()
     export_dict = {key: getattr(camera, key) for key in keys}
     export_dict['projectiontype']= cameraprojections.name_by_projection(camera.projection)
+    export_dict['distortiontype']= name_by_distortion(camera.lens)
     with open(filename, "w") as fp:
         fp.write(json.dumps(export_dict, indent=4))
 
 def OptimizeCamera(camera, enu_unit_coords, pxls, distortion=3, focallength = True, centers=True,  separate_x_y=True, fixed_rotation=False,
                    f_bounds=[500,10000], cx_bounds=[0, 6000], cy_bounds=[0,4000]):
+    """
+    Optimize camera parameters.
+
+    Parameters:
+        distortion: 0=no distortion, 1=k1 only, 2=k1+k2, 3=k1+k2+k3, 4=k1+k2+k3+p1+p2
+
+    Note: distortion>=4 requires OpenCVBrownLensDistortion (supports p1, p2)
+          distortion<=3 uses BrownLensDistortionLimited (radial only)
+    """
+    # Determine distortion class based on distortion level
+    if distortion >= 4:
+        from sudrabainiemakoni.cv2_lens_distortion import OpenCVBrownLensDistortion
+        distortion_class = OpenCVBrownLensDistortion
+    else:
+        distortion_class = BrownLensDistortionLimited
+
     fx,fy, cx,cy =  camera.focallength_x_px, camera.focallength_y_px, camera.center_x_px, camera.center_y_px
     #print(f_bounds, cx_bounds, cy_bounds)
     x0 = []
@@ -119,21 +155,30 @@ def OptimizeCamera(camera, enu_unit_coords, pxls, distortion=3, focallength = Tr
     if centers:
         x0=x0+[cx,cy]
         bounds = bounds + [cx_bounds, cy_bounds]
-    if distortion>0:
+
+    # Radial distortion parameters (k1, k2, k3)
+    if distortion>=1:
         x0=x0+[0.0]
         bounds = bounds + [[-5.0, 5.0]]
-        if distortion>1:
+        if distortion>=2:
             x0=x0+[0.0]
             bounds = bounds + [[-5.0, 5.0]]
-            if distortion>2:
+            if distortion>=3:
                 x0=x0+[0.0]
                 bounds = bounds + [[-5.0, 5.0]]
 
-    optres = scipy.optimize.minimize(ResFOVCamera, x0, args=(camera,  enu_unit_coords, pxls, distortion, focallength, centers,separate_x_y,fixed_rotation), method='SLSQP',
+    # Tangential distortion parameters (p1, p2)
+    if distortion>=4:
+        x0=x0+[0.0, 0.0]
+        bounds = bounds + [[-1.0, 1.0], [-1.0, 1.0]]
+
+    optres = scipy.optimize.minimize(ResFOVCamera, x0, 
+                    args=(camera,  enu_unit_coords, pxls, distortion, focallength, centers,separate_x_y,fixed_rotation), 
+                    method='SLSQP',
                         bounds=bounds)
     print(optres)
     # construct new camera from optimized camera parameters
-    cameranew = reload_camera(camera)
+    cameranew = reload_camera(camera, distortion_class=distortion_class)
     return cameranew
 
 def ResRot(x, camera1, space_coords, pxls):

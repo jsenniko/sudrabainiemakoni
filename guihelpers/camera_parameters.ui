@@ -47,17 +47,22 @@
           </item>
           <item>
            <property name="text">
-            <string>1 - First Order (Linear distortion)</string>
+            <string>1 - First Order (k1 only)</string>
            </property>
           </item>
           <item>
            <property name="text">
-            <string>2 - Second Order (Quadratic distortion)</string>
+            <string>2 - Second Order (k1, k2)</string>
            </property>
           </item>
           <item>
            <property name="text">
-            <string>3 - Third Order (Cubic distortion)</string>
+            <string>3 - Third Order (k1, k2, k3)</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>4 - Fourth Order (k1, k2, k3, p1, p2 - tangential)</string>
            </property>
           </item>
          </widget>
