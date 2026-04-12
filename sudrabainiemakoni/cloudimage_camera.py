@@ -21,11 +21,11 @@ import cameratransform as ct
 import pymap3d
 from scipy.spatial.transform import Rotation
 from sudrabainiemakoni import optimize_camera
-import cameraprojections
+from sudrabainiemakoni import cameraprojections
 from dataclasses import dataclass
 from enum import IntEnum
 from typing import Literal
-from lensdistortions import distortion_by_name, name_by_distortion
+from sudrabainiemakoni.lensdistortions import distortion_by_name, name_by_distortion
 
 class DistortionOrder(IntEnum):
     """Enumeration for camera distortion correction orders"""
@@ -228,7 +228,8 @@ class Camera:
                           ct.SpatialOrientation(),
                           distortion_class())
                     for key in state[ckey]:
-                        setattr(cam, key, state[ckey][key])
+                        if key not in ['projectiontype', 'distortiontype']:
+                            setattr(cam, key, state[ckey][key])
                     if ckey=='ENU':
                         self.camera_enu=cam
                     else:
@@ -363,37 +364,12 @@ class Camera:
                 - 'residuals': model - actual (N, 2)
                 - 'rms': Root mean square of residuals
         """
-        if self.camera_enu is None:
-            print("No camera calibration available")
-            return None
-
-        # Create AltAz frame for coordinate transformation
-        import astropy.coordinates
-        from sudrabainiemakoni.starreference import get_stars_enu_unit_coords
-        altaz_frame = astropy.coordinates.AltAz(location=location, obstime=obs_time)
-
-        # Extract ENU coordinates and pixel coordinates from star references
-        enu_unit_coords = get_stars_enu_unit_coords(star_references, altaz_frame)
-        star_pixel_coords = np.array([r.pixelcoords for r in star_references])
-
-        # Calculate model predictions
-        model_pixel_coords = self.camera_enu.imageFromSpace(enu_unit_coords)
-
-        # Calculate residuals (model - actual)
-        residuals = model_pixel_coords - star_pixel_coords
-        rms = np.sqrt(np.mean(residuals**2))
-
-        return {
-            'star_pixel_coords': star_pixel_coords,
-            'model_pixel_coords': model_pixel_coords,
-            'residuals': residuals,
-            'rms': rms
-        }
+        return calculate_residuals(self.camera_enu, star_references, location, obs_time)
 
     def save(self, filename):
         optimize_camera.save_camera(self.camera_enu,os.path.splitext(filename)[0]+'_enu.json')
         optimize_camera.save_camera(self.camera_ecef,os.path.splitext(filename)[0]+'_ecef.json')
-        
+
     def load(self, filename):
         fn = os.path.splitext(filename)[0]
         if os.path.exists(fn+'_enu.json'):
@@ -412,7 +388,7 @@ class Camera:
 
     def imageFromECEF(self, xyz):
         return self.camera_ecef.imageFromSpace(xyz)
-        
+
     def imageFromAltAz(self, az,alt):
         enu = pymap3d.aer2enu(az,alt,1.0)
         return self.camera_enu.imageFromSpace(enu)
@@ -429,11 +405,11 @@ class Camera:
             roll =camera_enu.roll_deg
         # tilt - 0 deg down, zenith distance=180-tilt, elevation=tilt-90
         return azimuth, tilt-90, roll
-        
+
     def get_focal_lengths_mm(self):
         camera_enu=self.camera_enu
         return camera_enu.focallength_x_px * 36.0 / camera_enu.image_width_px, camera_enu.focallength_y_px * 36.0 / camera_enu.image_width_px, camera_enu.center_x_px, camera_enu.center_y_px
-        
+
     @classmethod
     def ecef_from_enu(cls, camera_enu, lat_deg, lon_deg, height_m):
         import copy
@@ -456,15 +432,15 @@ class Camera:
         camera_ecef.pos_y_m=y
         camera_ecef.elevation_m=z
         return camera_ecef
-        
+
     @classmethod
-    def make_cameras(cls, lat_deg, lon_deg, height_m, width_px, height_px, 
-                     focallength_35mm, azimuth, elevation, rotation, 
+    def make_cameras(cls, lat_deg, lon_deg, height_m, width_px, height_px,
+                     focallength_35mm, azimuth, elevation, rotation,
                      projectiontype='rectilinear',
                      distortion_type=''):
         projection=cameraprojections.projection_by_name(projectiontype)
         distortion_class=distortion_by_name(distortion_type)
-        camera_enu = ct.Camera(projection(focallength_mm=focallength_35mm,  
+        camera_enu = ct.Camera(projection(focallength_mm=focallength_35mm,
                                              sensor=(36,24),
                                              image=(width_px, height_px)),
                                ct.SpatialOrientation(
@@ -479,7 +455,7 @@ class Camera:
 
         camera_ecef=Camera.ecef_from_enu(camera_enu, lat_deg, lon_deg, height_m)
         return camera_enu, camera_ecef
-        
+
     @classmethod
     def GetAltAzGrid_fromcamera(cls, width_px, height_px, camera_enu):
         i_grid, j_grid = np.meshgrid(np.arange(width_px),np.arange(height_px))
@@ -491,3 +467,48 @@ class Camera:
         if az_max-az_min>180:
             azalt[0]=np.where(azalt[0]>180,azalt[0]-360,azalt[0])
         return azalt
+
+
+def calculate_residuals(camera_enu, star_references, location, obs_time):
+    """
+    Calculate calibration residuals from camera parameters.
+
+    Args:
+        camera_enu: cameratransform.Camera object in ENU coordinate system
+        star_references: List of StarReference objects
+        location: astropy.coordinates.EarthLocation
+        obs_time: astropy.time.Time
+
+    Returns:
+        dict with keys:
+            - 'star_pixel_coords': Actual digitized positions (N, 2)
+            - 'model_pixel_coords': Model-predicted positions (N, 2)
+            - 'residuals': model - actual (N, 2)
+            - 'rms': Root mean square of residuals
+    """
+    if camera_enu is None:
+        print("No camera calibration available")
+        return None
+
+    # Create AltAz frame for coordinate transformation
+    import astropy.coordinates
+    from sudrabainiemakoni.starreference import get_stars_enu_unit_coords
+    altaz_frame = astropy.coordinates.AltAz(location=location, obstime=obs_time)
+
+    # Extract ENU coordinates and pixel coordinates from star references
+    enu_unit_coords = get_stars_enu_unit_coords(star_references, altaz_frame)
+    star_pixel_coords = np.array([r.pixelcoords for r in star_references])
+
+    # Calculate model predictions
+    model_pixel_coords = camera_enu.imageFromSpace(enu_unit_coords)
+
+    # Calculate residuals (model - actual)
+    residuals = model_pixel_coords - star_pixel_coords
+    rms = np.sqrt(np.mean(residuals**2))
+
+    return {
+        'star_pixel_coords': star_pixel_coords,
+        'model_pixel_coords': model_pixel_coords,
+        'residuals': residuals,
+        'rms': rms
+    }

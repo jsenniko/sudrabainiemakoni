@@ -14,7 +14,7 @@ from sudrabainiemakoni import geoutils
 from sudrabainiemakoni import calculations
 from sudrabainiemakoni.starreference import StarReference, get_stars_enu_unit_coords
 from sudrabainiemakoni.cloudimage_camera import Camera
-import cameraprojections
+from sudrabainiemakoni import cameraprojections
 
 
 # Import the new Web Mercator implementation and create backwards compatibility alias
