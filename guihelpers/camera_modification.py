@@ -46,7 +46,7 @@ class CameraModificationDialog(QtWidgets.QDialog):
             raise FileNotFoundError(f"UI file not found: {ui_file}")
         
         uic.loadUi(ui_file, self)
-        
+
         # Store references
         self.camera = camera
         self.cloudimage = cloudimage
@@ -69,7 +69,7 @@ class CameraModificationDialog(QtWidgets.QDialog):
         # Set window properties
         self.setModal(True)
         self.setWindowTitle("Modify Camera Parameters")
-    
+
     def setup_connections(self):
         """Setup signal connections for UI elements"""
         # Reset button

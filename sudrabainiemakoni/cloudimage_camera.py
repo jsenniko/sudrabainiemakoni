@@ -130,7 +130,7 @@ class Camera:
     
     @classmethod
     def from_manual_parameters(cls, image_size, location, fx, fy, cx, cy, azimuth, 
-                               elevation, rotation, k1=0, k2=0, k3=0, 
+                               elevation, rotation, k1=0, k2=0, k3=0, p1=0, p2=0,
                                projection='rectilinear', distortion_type=''):
         """
         Create a camera from manually entered parameters without calibration.
@@ -188,6 +188,8 @@ class Camera:
         camera.camera_enu.k1 = k1
         camera.camera_enu.k2 = k2
         camera.camera_enu.k3 = k3
+        camera.camera_enu.p1 = p1
+        camera.camera_enu.p2 = p2
 
         # Create ECEF camera from ENU camera using provided location
         camera.camera_ecef = camera.camera_ecef_from_camera_enu(camera.camera_enu, location)
@@ -307,9 +309,13 @@ class Camera:
         self.camera_enu.pos_x_m=0
         self.camera_enu.pos_y_m=0
         self.camera_enu.elevation_m=0
-        self.camera_enu = optimize_camera.OptimizeCamera(self.camera_enu, enu_unit_coords, pxls, 
-                                                         distortion=distortion, centers=centers,separate_x_y=separate_x_y,
-                                                         f_bounds=f_bounds, cx_bounds=cx_bounds, cy_bounds=cy_bounds
+        #self.camera_enu = optimize_camera.OptimizeCamera(self.camera_enu, enu_unit_coords, pxls, 
+        #                                                 distortion=distortion, centers=centers,separate_x_y=separate_x_y,
+        #                                                 f_bounds=f_bounds, cx_bounds=cx_bounds, cy_bounds=cy_bounds
+        #                                                 )
+        from optimize_camera_cv2 import optimize_camera_cv2
+        self.camera_enu = optimize_camera_cv2(self.camera_enu, enu_unit_coords, pxls, 
+                                                         distortion=distortion, centers=centers,separate_x_y=separate_x_y,                                                         
                                                          )
 
         calculated_star_px_coords = self.camera_enu.imageFromSpace(enu_unit_coords)

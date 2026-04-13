@@ -252,7 +252,7 @@
              <double>360.000000000000000</double>
             </property>
             <property name="decimals">
-             <number>3</number>
+             <number>8</number>
             </property>
             <property name="value">
              <double>0.000000000000000</double>
@@ -275,7 +275,7 @@
              <double>90.000000000000000</double>
             </property>
             <property name="decimals">
-             <number>3</number>
+             <number>8</number>
             </property>
             <property name="value">
              <double>0.000000000000000</double>
@@ -298,7 +298,7 @@
              <double>180.000000000000000</double>
             </property>
             <property name="decimals">
-             <number>3</number>
+             <number>8</number>
             </property>
             <property name="value">
              <double>0.000000000000000</double>
@@ -339,7 +339,7 @@
                <double>1.000000000000000</double>
               </property>
               <property name="decimals">
-               <number>6</number>
+               <number>8</number>
               </property>
               <property name="singleStep">
                <double>0.000001000000000</double>
@@ -371,7 +371,7 @@
                <double>1.000000000000000</double>
               </property>
               <property name="decimals">
-               <number>6</number>
+               <number>8</number>
               </property>
               <property name="singleStep">
                <double>0.000001000000000</double>
@@ -403,7 +403,7 @@
                <double>1.000000000000000</double>
               </property>
               <property name="decimals">
-               <number>6</number>
+               <number>8</number>
               </property>
               <property name="singleStep">
                <double>0.000001000000000</double>
@@ -475,7 +475,7 @@
                <double>0.100000000000000</double>
               </property>
               <property name="decimals">
-               <number>6</number>
+               <number>8</number>
               </property>
               <property name="singleStep">
                <double>0.000001000000000</double>
@@ -513,7 +513,7 @@
                <double>0.100000000000000</double>
               </property>
               <property name="decimals">
-               <number>6</number>
+               <number>8</number>
               </property>
               <property name="singleStep">
                <double>0.000001000000000</double>
