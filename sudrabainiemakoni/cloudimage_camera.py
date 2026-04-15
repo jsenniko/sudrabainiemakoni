@@ -309,14 +309,16 @@ class Camera:
         self.camera_enu.pos_x_m=0
         self.camera_enu.pos_y_m=0
         self.camera_enu.elevation_m=0
-        #self.camera_enu = optimize_camera.OptimizeCamera(self.camera_enu, enu_unit_coords, pxls, 
-        #                                                 distortion=distortion, centers=centers,separate_x_y=separate_x_y,
-        #                                                 f_bounds=f_bounds, cx_bounds=cx_bounds, cy_bounds=cy_bounds
-        #                                                 )
-        from optimize_camera_cv2 import optimize_camera_cv2
-        self.camera_enu = optimize_camera_cv2(self.camera_enu, enu_unit_coords, pxls, 
-                                                         distortion=distortion, centers=centers,separate_x_y=separate_x_y,                                                         
-                                                         )
+        if len(pxls)<6:
+            self.camera_enu = optimize_camera.OptimizeCamera(self.camera_enu, enu_unit_coords, pxls, 
+                                                            distortion=distortion, centers=centers,separate_x_y=separate_x_y,
+                                                            f_bounds=f_bounds, cx_bounds=cx_bounds, cy_bounds=cy_bounds
+                                                            )
+        else:
+            from optimize_camera_cv2 import optimize_camera_cv2
+            self.camera_enu = optimize_camera_cv2(self.camera_enu, enu_unit_coords, pxls, 
+                                                            distortion=distortion, centers=centers,separate_x_y=separate_x_y,                                                         
+                                                            )
 
         calculated_star_px_coords = self.camera_enu.imageFromSpace(enu_unit_coords)
         residuals = calculated_star_px_coords - pxls
