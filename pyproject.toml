@@ -46,7 +46,7 @@ gui = [
 sudrabainie = "guihelpers.sudrabainie:main"
 
 [tool.setuptools]
-packages = ["sudrabainiemakoni", "guihelpers"]
+packages = ["sudrabainiemakoni", "sudrabainiemakoni.calibration", "guihelpers", "referencing"]
 zip-safe = false
 
 # Note: guihelpers is kept as a separate top-level package for backward compatibility
