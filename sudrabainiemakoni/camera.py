@@ -1,4 +1,24 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, asdict
+from typing import Optional
+
+
+@dataclass
+class ProjectionParameters:
+	focal_length_x: float
+	focal_length_y: float
+	center_x: float
+	center_y: float
+	image_width: int
+	image_height: int
+
+	def to_dict(self):
+		return asdict(self)
+
+	@classmethod
+	def from_dict(cls, data):
+		return cls(**data)
+
 
 class Camera(ABC):
 	def __init__(self):

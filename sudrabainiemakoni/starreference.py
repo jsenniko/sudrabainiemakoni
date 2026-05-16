@@ -9,21 +9,7 @@ import astropy.units as u
 import pymap3d
 
 
-def apply_atmospheric_refraction_correction(alt_deg):
-    """
-    Apply atmospheric refraction correction to altitude angle.
-
-    This correction accounts for the bending of light through Earth's atmosphere,
-    which causes celestial objects to appear slightly higher than their true position.
-    The formula is based on Bennett's empirical refraction formula.
-
-    Args:
-        alt_deg: Altitude angle(s) in degrees (scalar or array)
-
-    Returns:
-        Corrected altitude angle(s) in degrees
-    """
-    return alt_deg + 0.01666 / np.tan(np.radians(alt_deg + (7.31 / (alt_deg + 4.4))))
+from sudrabainiemakoni.calibration.atmospheric_refraction import apply_atmospheric_refraction_correction  # noqa: F401
 
 
 class StarReference:
@@ -183,7 +169,7 @@ class StarReference:
         self.skycoord = c
         return self.skycoord
     
-    def getAltAzCoord(self, altaz_frame=None):
+    def getAltAzCoord(self, altaz_frame=None, refraction_correction=True):
         """
         Get Alt-Az coordinates for this star.
         
@@ -199,7 +185,22 @@ class StarReference:
             
         # If we have RA/DEC and a frame, convert to Alt-Az
         if self.skycoord is not None and altaz_frame is not None:
-            return self.skycoord.transform_to(altaz_frame)
+            # Apply atmospheric refraction correction if requested
+            altaz_coord = self.skycoord.transform_to(altaz_frame)
+            if refraction_correction:
+                alt_deg = apply_atmospheric_refraction_correction(altaz_coord.alt.value)
+                # Create new AltAz coordinate with corrected altitude
+                altaz_coord = astropy.coordinates.AltAz(
+                    az=altaz_coord.az,
+                    alt=alt_deg * u.deg,
+                    obstime=altaz_coord.obstime,
+                    location=altaz_coord.location,
+                    pressure=altaz_coord.pressure,
+                    temperature=altaz_coord.temperature,
+                    relative_humidity=altaz_coord.relative_humidity,
+                    obswl=altaz_coord.obswl
+                )
+            return altaz_coord
             
         return None
     
@@ -230,13 +231,10 @@ class StarReference:
         Returns:
             numpy array [east, north, up] or None if coordinates not available
         """
-        altaz_coord = self.getAltAzCoord(altaz_frame)
+        altaz_coord = self.getAltAzCoord(altaz_frame, refraction_correction = refraction_correction)
         if altaz_coord is not None:
             alt_deg = altaz_coord.alt.value
 
-            # Apply atmospheric refraction correction if requested
-            if refraction_correction:
-                alt_deg = apply_atmospheric_refraction_correction(alt_deg)
 
             enu = pymap3d.aer2enu(altaz_coord.az.value, alt_deg, 1)
             return np.array(enu)

@@ -84,6 +84,9 @@ class CameraModificationDialog(QtWidgets.QDialog):
         # Focal length locking checkbox
         self.checkBox_lock_focal.stateChanged.connect(self.on_focal_lock_changed)
 
+        # Rational distortion checkbox
+        self.checkBox_use_rational.stateChanged.connect(self.on_rational_checkbox_changed)
+
         # Tangential distortion checkbox
         self.checkBox_use_tangential.stateChanged.connect(self.on_tangential_checkbox_changed)
     
@@ -99,6 +102,10 @@ class CameraModificationDialog(QtWidgets.QDialog):
         self.doubleSpinBox_k1.setToolTip("First-order radial distortion coefficient")
         self.doubleSpinBox_k2.setToolTip("Second-order radial distortion coefficient")
         self.doubleSpinBox_k3.setToolTip("Third-order radial distortion coefficient")
+        self.checkBox_use_rational.setToolTip("Enable rational distortion (k4, k5, k6) denominator coefficients")
+        self.doubleSpinBox_k4.setToolTip("Fourth-order rational distortion coefficient (denominator)")
+        self.doubleSpinBox_k5.setToolTip("Fifth-order rational distortion coefficient (denominator)")
+        self.doubleSpinBox_k6.setToolTip("Sixth-order rational distortion coefficient (denominator)")
         self.checkBox_use_tangential.setToolTip("Enable tangential distortion (p1, p2) for lenses with non-parallel elements")
         self.doubleSpinBox_p1.setToolTip("First tangential distortion coefficient")
         self.doubleSpinBox_p2.setToolTip("Second tangential distortion coefficient")
@@ -168,16 +175,26 @@ class CameraModificationDialog(QtWidgets.QDialog):
             k1 = getattr(self.camera.camera_enu, 'k1', 0.0)
             k2 = getattr(self.camera.camera_enu, 'k2', 0.0)
             k3 = getattr(self.camera.camera_enu, 'k3', 0.0)
+            k4 = getattr(self.camera.camera_enu, 'k4', 0.0)
+            k5 = getattr(self.camera.camera_enu, 'k5', 0.0)
+            k6 = getattr(self.camera.camera_enu, 'k6', 0.0)
             p1 = getattr(self.camera.camera_enu, 'p1', 0.0)
             p2 = getattr(self.camera.camera_enu, 'p2', 0.0)
 
-            self.original_params.update({'k1': k1, 'k2': k2, 'k3': k3, 'p1': p1, 'p2': p2})
+            self.original_params.update({'k1': k1, 'k2': k2, 'k3': k3, 'k4': k4, 'k5': k5, 'k6': k6, 'p1': p1, 'p2': p2})
 
             self.doubleSpinBox_k1.setValue(k1)
             self.doubleSpinBox_k2.setValue(k2)
             self.doubleSpinBox_k3.setValue(k3)
+            self.doubleSpinBox_k4.setValue(k4)
+            self.doubleSpinBox_k5.setValue(k5)
+            self.doubleSpinBox_k6.setValue(k6)
             self.doubleSpinBox_p1.setValue(p1)
             self.doubleSpinBox_p2.setValue(p2)
+
+            # Set rational checkbox based on whether k4/k5/k6 is non-zero
+            use_rational = (abs(k4) > 1e-9 or abs(k5) > 1e-9 or abs(k6) > 1e-9)
+            self.checkBox_use_rational.setChecked(use_rational)
 
             # Set tangential checkbox based on whether p1 or p2 is non-zero
             use_tangential = (abs(p1) > 1e-9 or abs(p2) > 1e-9)
@@ -241,8 +258,12 @@ class CameraModificationDialog(QtWidgets.QDialog):
         self.doubleSpinBox_k1.setValue(0.0)
         self.doubleSpinBox_k2.setValue(0.0)
         self.doubleSpinBox_k3.setValue(0.0)
+        self.doubleSpinBox_k4.setValue(0.0)
+        self.doubleSpinBox_k5.setValue(0.0)
+        self.doubleSpinBox_k6.setValue(0.0)
         self.doubleSpinBox_p1.setValue(0.0)
         self.doubleSpinBox_p2.setValue(0.0)
+        self.checkBox_use_rational.setChecked(False)
         self.checkBox_use_tangential.setChecked(False)
         self.comboBox_projection.setCurrentIndex(0)
     
@@ -358,6 +379,23 @@ class CameraModificationDialog(QtWidgets.QDialog):
                 finally:
                     self._updating_locked_focal = False
 
+    def on_rational_checkbox_changed(self, state):
+        """Handle rational distortion checkbox state change"""
+        is_enabled = (state == 2)  # Qt.Checked
+
+        self.label_rational.setEnabled(is_enabled)
+        self.label_k4.setEnabled(is_enabled)
+        self.label_k5.setEnabled(is_enabled)
+        self.label_k6.setEnabled(is_enabled)
+        self.doubleSpinBox_k4.setEnabled(is_enabled)
+        self.doubleSpinBox_k5.setEnabled(is_enabled)
+        self.doubleSpinBox_k6.setEnabled(is_enabled)
+
+        if not is_enabled:
+            self.doubleSpinBox_k4.setValue(0.0)
+            self.doubleSpinBox_k5.setValue(0.0)
+            self.doubleSpinBox_k6.setValue(0.0)
+
     def on_tangential_checkbox_changed(self, state):
         """Handle tangential distortion checkbox state change"""
         is_enabled = (state == 2)  # Qt.Checked
@@ -394,6 +432,10 @@ class CameraModificationDialog(QtWidgets.QDialog):
             'k1': self.doubleSpinBox_k1.value(),
             'k2': self.doubleSpinBox_k2.value(),
             'k3': self.doubleSpinBox_k3.value(),
+            'k4': self.doubleSpinBox_k4.value() if self.checkBox_use_rational.isChecked() else 0.0,
+            'k5': self.doubleSpinBox_k5.value() if self.checkBox_use_rational.isChecked() else 0.0,
+            'k6': self.doubleSpinBox_k6.value() if self.checkBox_use_rational.isChecked() else 0.0,
+            'use_rational': self.checkBox_use_rational.isChecked(),
             'p1': self.doubleSpinBox_p1.value() if self.checkBox_use_tangential.isChecked() else 0.0,
             'p2': self.doubleSpinBox_p2.value() if self.checkBox_use_tangential.isChecked() else 0.0,
             'use_tangential': self.checkBox_use_tangential.isChecked(),
@@ -427,6 +469,9 @@ class CameraModificationDialog(QtWidgets.QDialog):
             self.camera.camera_enu.k1 = params['k1']
             self.camera.camera_enu.k2 = params['k2']
             self.camera.camera_enu.k3 = params['k3']
+            self.camera.camera_enu.k4 = params['k4']
+            self.camera.camera_enu.k5 = params['k5']
+            self.camera.camera_enu.k6 = params['k6']
 
             # Apply tangential distortion if supported
             if hasattr(self.camera.camera_enu.lens, 'p1'):
@@ -476,7 +521,8 @@ class CameraModificationDialog(QtWidgets.QDialog):
             return False, "Elevation must be between -90 and 90 degrees"
         
         # Validate distortion coefficients (reasonable ranges)
-        for k_name, k_val in [('k1', params['k1']), ('k2', params['k2']), ('k3', params['k3'])]:
+        for k_name, k_val in [('k1', params['k1']), ('k2', params['k2']), ('k3', params['k3']),
+                               ('k4', params['k4']), ('k5', params['k5']), ('k6', params['k6'])]:
             if abs(k_val) > 1.0:
                 return False, f"Distortion coefficient {k_name} seems too large (|{k_name}| > 1.0)"
 
@@ -567,6 +613,9 @@ class CameraModificationDialog(QtWidgets.QDialog):
                 k1=params['k1'],
                 k2=params['k2'],
                 k3=params['k3'],
+                k4=params.get('k4', 0.0),
+                k5=params.get('k5', 0.0),
+                k6=params.get('k6', 0.0),
                 p1=params.get('p1', 0.0),
                 p2=params.get('p2', 0.0),
                 projection=params['projection']

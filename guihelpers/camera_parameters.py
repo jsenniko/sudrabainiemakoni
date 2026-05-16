@@ -79,21 +79,43 @@ class CameraParametersDialog(QtWidgets.QDialog):
             "Higher order corrections handle more complex lens distortions\n"
             "but may overfit with insufficient reference points.\n\n"
             "Order 4 includes tangential distortion (p1, p2) which accounts\n"
-            "for lens elements not being perfectly parallel."
+            "for lens elements not being perfectly parallel.\n\n"
+            "Order 5 adds rational distortion (k4, k5, k6) for complex radial\n"
+            "distortions in high-precision applications."
         )
-        
+
         self.comboBox_projection.setToolTip(
             "Choose projection model based on your camera/lens type:\n"
             "• Rectilinear: Normal perspective cameras\n"
             "• Equirectangular: 360° panoramic images\n"
             "• Stereographic: Wide-angle fisheye lenses"
         )
-        
+
+        self.groupBox_rotation.setToolTip(
+            "Enable to optimize camera orientation (heading, tilt, roll).\n"
+            "Disable to keep current rotation fixed."
+        )
+
+        self.groupBox_intrinsics.setToolTip(
+            "Enable to optimize camera intrinsic parameters (focal length, centers).\n"
+            "Disable to keep current intrinsics fixed."
+        )
+
+        self.groupBox_distortion_opt.setToolTip(
+            "Enable to optimize lens distortion coefficients.\n"
+            "Disable to keep existing distortion values unchanged."
+        )
+
+        self.checkBox_focallength.setToolTip(
+            "Allow optimization of camera focal length.\n"
+            "Usually recommended unless you have precise calibration data."
+        )
+
         self.checkBox_centers.setToolTip(
             "Allow optimization of camera center position (principal point).\n"
             "Usually recommended unless you have precise calibration data."
         )
-        
+
         self.checkBox_separate_xy.setToolTip(
             "Use different focal lengths for X and Y axes.\n"
             "Recommended for most cameras to account for sensor variations."
@@ -101,9 +123,16 @@ class CameraParametersDialog(QtWidgets.QDialog):
     
     def load_params_to_ui(self):
         """Load parameter values into UI controls"""
-        # Distortion order
-        self.comboBox_distortion.setCurrentIndex(int(self.params.distortion))
-        
+        # Store the actual distortion order value (for when optimization is disabled)
+        if self.params.distortion is not None:
+            self._last_distortion_order = int(self.params.distortion)
+            self.comboBox_distortion.setCurrentIndex(self._last_distortion_order)
+        else:
+            # If distortion is None, use previously saved order or default to 3
+            if not hasattr(self, '_last_distortion_order'):
+                self._last_distortion_order = 3  # Default to third order
+            self.comboBox_distortion.setCurrentIndex(self._last_distortion_order)
+
         # Projection type
         projection_map = {
             'rectilinear': 0,
@@ -113,23 +142,45 @@ class CameraParametersDialog(QtWidgets.QDialog):
         self.comboBox_projection.setCurrentIndex(
             projection_map.get(self.params.projectiontype, 0)
         )
-        
-        # Optimization options
+
+        # Optimization group checkboxes
+        self.groupBox_rotation.setChecked(self.params.optimize_rotation)
+        self.groupBox_intrinsics.setChecked(self.params.focallength or self.params.centers)
+        self.groupBox_distortion_opt.setChecked(self.params.distortion is not None)
+
+        # Individual optimization options
+        self.checkBox_focallength.setChecked(self.params.focallength)
         self.checkBox_centers.setChecked(self.params.centers)
         self.checkBox_separate_xy.setChecked(self.params.separate_x_y)
     
     def save_params_from_ui(self):
         """Save UI values back to parameters object"""
-        # Distortion order
-        self.params.distortion = DistortionOrder(self.comboBox_distortion.currentIndex())
-        
+        # Always save the current distortion order selection
+        self._last_distortion_order = self.comboBox_distortion.currentIndex()
+
+        # Distortion order - set to None if distortion optimization is disabled
+        if self.groupBox_distortion_opt.isChecked():
+            self.params.distortion = DistortionOrder(self._last_distortion_order)
+        else:
+            self.params.distortion = None
+
         # Projection type
         projection_types = ['rectilinear', 'equirectangular', 'stereographic']
         self.params.projectiontype = projection_types[self.comboBox_projection.currentIndex()]
-        
-        # Optimization options
-        self.params.centers = self.checkBox_centers.isChecked()
-        self.params.separate_x_y = self.checkBox_separate_xy.isChecked()
+
+        # Optimization group options
+        self.params.optimize_rotation = self.groupBox_rotation.isChecked()
+
+        # Individual intrinsics options (only matter if intrinsics group is checked)
+        if self.groupBox_intrinsics.isChecked():
+            self.params.focallength = self.checkBox_focallength.isChecked()
+            self.params.centers = self.checkBox_centers.isChecked()
+            self.params.separate_x_y = self.checkBox_separate_xy.isChecked()
+        else:
+            # When intrinsics group is unchecked, disable all intrinsics optimization
+            self.params.focallength = False
+            self.params.centers = False
+            self.params.separate_x_y = False
     
     def reset_to_defaults(self):
         """Reset all parameters to default values"""

@@ -26,6 +26,48 @@ from sudrabainiemakoni.cloudimage_camera import CameraCalibrationParams
 
 
 @dataclass
+class AutoMatchSettings:
+    """Parameters for the automatic star matching pipeline."""
+    max_magnitude_coarse: float = 4.0
+    angle_tol_deg: float = 0.1
+    focal_length_uncertainty: float = 0.003
+    n_search: int = 50
+    max_magnitude_fine: float = 5.0
+    nn_max_dist_px: float = 15.0
+    optimize_intrinsics: bool = True
+    max_rms_coarse_px: float = 5.0
+    max_rms_fine_px: float = 3.0
+    update_camera: bool = True
+
+    def __post_init__(self):
+        # Ensure fields added later always exist on unpickled/old instances
+        if not hasattr(self, 'update_camera'):
+            self.update_camera = True
+        if not hasattr(self, 'max_rms_coarse_px'):
+            self.max_rms_coarse_px = 5.0
+        if not hasattr(self, 'max_rms_fine_px'):
+            self.max_rms_fine_px = 3.0
+
+    def to_dict(self):
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d):
+        return cls(
+            max_magnitude_coarse     = float(d.get('max_magnitude_coarse', 4.0)),
+            angle_tol_deg            = float(d.get('angle_tol_deg', 0.1)),
+            focal_length_uncertainty = float(d.get('focal_length_uncertainty', 0.003)),
+            n_search                 = int(d.get('n_search', 50)),
+            max_magnitude_fine       = float(d.get('max_magnitude_fine', 5.0)),
+            nn_max_dist_px           = float(d.get('nn_max_dist_px', 15.0)),
+            optimize_intrinsics      = bool(d.get('optimize_intrinsics', True)),
+            max_rms_coarse_px        = float(d.get('max_rms_coarse_px', 5.0)),
+            max_rms_fine_px          = float(d.get('max_rms_fine_px', 3.0)),
+            update_camera            = bool(d.get('update_camera', True)),
+        )
+
+
+@dataclass
 class SettingsMetadata:
     """Metadata about the settings file"""
     settings_version: str = "1.0"
@@ -80,6 +122,7 @@ class AppSettings:
         
         # Initialize settings objects with defaults
         self.camera_calibration = CameraCalibrationParams()
+        self.auto_match = AutoMatchSettings()
         self.metadata = SettingsMetadata(created_by=app_name)
         
         # Last used directory for projects and pictures
@@ -134,6 +177,7 @@ class AppSettings:
         """
         return {
             "camera_calibration": self.camera_calibration.to_dict(),
+            "auto_match": self.auto_match.to_dict(),
             "metadata": asdict(self.metadata),
             "last_directory": self.last_directory
         }
@@ -145,6 +189,14 @@ class AppSettings:
         Args:
             data: Dictionary with settings data
         """
+        # Load auto match settings
+        if "auto_match" in data:
+            try:
+                self.auto_match = AutoMatchSettings.from_dict(data["auto_match"])
+            except Exception as e:
+                print(f"Warning: Could not load auto match settings: {e}")
+                self.auto_match = AutoMatchSettings()
+
         # Load camera calibration parameters
         if "camera_calibration" in data:
             try:

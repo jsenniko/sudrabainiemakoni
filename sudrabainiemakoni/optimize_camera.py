@@ -2,7 +2,7 @@ import numpy as np
 import scipy.optimize
 from scipy.spatial.transform import Rotation
 from sudrabainiemakoni import cameraprojections
-from sudrabainiemakoni.lensdistortions import BrownLensDistortionLimited, distortion_by_name, name_by_distortion
+from sudrabainiemakoni.lensdistortions import BrownLensDistortionLimited, RationalDistortionLimited, distortion_by_name, name_by_distortion
 
 def Rotation_fromOrientation(obj):
     return Rotation.from_euler('ZXZ', [ -obj.roll_deg,-obj.tilt_deg, obj.heading_deg ], degrees=True)
@@ -33,8 +33,8 @@ def GetTestPxls(space_coords, pxls, fx, fy, cx, cy):
 def ResFOV(x, space_coords, pxls):
     test_pxls, rotmatr = GetTestPxls(space_coords, pxls, x[0], x[1], x[2], x[3])
     return np.sqrt(np.mean((test_pxls-pxls)**2))
-def ResFOVCamera(x, camera, space_coords, pxls, distortion=3, focallength = True, 
-                 centers=True, separate_x_y=True, fixed_rotation=False,
+def ResFOVCamera(x, camera, space_coords, pxls, distortion=3, focallength = True,
+                 centers=True, separate_x_y=True, optimize_rotation=True,
                  ):
     """
     camera - cameratransform.camera
@@ -55,20 +55,20 @@ def ResFOVCamera(x, camera, space_coords, pxls, distortion=3, focallength = True
         n=n+2
     else:
         cx, cy = camera.center_x_px, camera.center_y_px
-    if not fixed_rotation:
+    if optimize_rotation:
         rotmatr = GetRotMatr(space_coords, pxls, fx, fy, cx, cy)
     camera.focallength_x_px = fx
     camera.focallength_y_px = fy
     camera.center_x_px=cx
     camera.center_y_px=cy
-    if not fixed_rotation:
+    if optimize_rotation:
         angles = Orientation_fromRotation(rotmatr)
         camera.roll_deg=angles['roll_deg']
         camera.tilt_deg=angles['tilt_deg']
         camera.heading_deg=angles['heading_deg']
 
     # Handle radial distortion (k1, k2, k3)
-    if distortion>=1:
+    if distortion is not None and distortion>=1:
         camera.k1=x[n]
         n=n+1
         if distortion>=2:
@@ -79,7 +79,7 @@ def ResFOVCamera(x, camera, space_coords, pxls, distortion=3, focallength = True
                 n=n+1
 
     # Handle tangential distortion (p1, p2) for distortion>=4
-    if distortion>=4:
+    if distortion is not None and distortion>=4:
         camera.p1=x[n]
         n=n+1
         camera.p2=x[n]
@@ -98,46 +98,32 @@ def reload_camera(camera, distortion_class = BrownLensDistortionLimited):
     for key in variables:
         setattr(camnew, key, variables[key])
     return camnew
-# fix loading bug of cameratransform v1.1
-def load_camera(filename):
-    import cameratransform as ct
 
-    import json
-    with open(filename, "r") as fp:
-        variables = json.loads(fp.read())
-    if 'projectiontype' in variables:
-        projection = cameraprojections.projection_by_name(variables['projectiontype'])
-    else:
-        projection = ct.RectilinearProjection
-    distortion = distortion_by_name(variables.get('distortiontype', None))
-    camera = ct.Camera(projection(), ct.SpatialOrientation(),  distortion())    
-    camera.load(filename)
-    return camera
-def save_camera(camera, filename):
-    import cameratransform as ct
-    import json
-    keys = camera.parameters.parameters.keys()
-    export_dict = {key: getattr(camera, key) for key in keys}
-    export_dict['projectiontype']= cameraprojections.name_by_projection(camera.projection)
-    export_dict['distortiontype']= name_by_distortion(camera.lens)
-    with open(filename, "w") as fp:
-        fp.write(json.dumps(export_dict, indent=4))
-
-def OptimizeCamera(camera, enu_unit_coords, pxls, distortion=3, focallength = True, centers=True,  separate_x_y=True, fixed_rotation=False,
+def OptimizeCamera(camera, enu_unit_coords, pxls, distortion=3, focallength = True, centers=True,  separate_x_y=True, optimize_rotation=True,
                    f_bounds=[500,10000], cx_bounds=[0, 6000], cy_bounds=[0,4000]):
     """
     Optimize camera parameters.
 
     Parameters:
-        distortion: 0=no distortion, 1=k1 only, 2=k1+k2, 3=k1+k2+k3, 4=k1+k2+k3+p1+p2
+        distortion: 0=no distortion, 1=k1 only, 2=k1+k2, 3=k1+k2+k3, 4=k1+k2+k3+p1+p2, or None to keep existing distortion
+        focallength: whether to optimize focal length
+        centers: whether to optimize camera center position
+        separate_x_y: use separate focal lengths for X and Y axes
+        optimize_rotation: whether to optimize camera rotation
 
     Note: distortion>=4 requires OpenCVBrownLensDistortion (supports p1, p2)
           distortion<=3 uses BrownLensDistortionLimited (radial only)
+          distortion=None keeps existing distortion coefficients unchanged
     """
     # Determine distortion class based on distortion level
-    if distortion >= 4:
+    if distortion is None:
+        # Keep existing distortion class
+        distortion_class = type(camera.lens)
+    elif distortion == 4:
         from sudrabainiemakoni.cv2_lens_distortion import OpenCVBrownLensDistortion
         distortion_class = OpenCVBrownLensDistortion
+    elif distortion in [5,6]:
+        distortion_class = RationalDistortionLimited
     else:
         distortion_class = BrownLensDistortionLimited
 
@@ -157,7 +143,7 @@ def OptimizeCamera(camera, enu_unit_coords, pxls, distortion=3, focallength = Tr
         bounds = bounds + [cx_bounds, cy_bounds]
 
     # Radial distortion parameters (k1, k2, k3)
-    if distortion>=1:
+    if distortion is not None and distortion>=1:
         x0=x0+[0.0]
         bounds = bounds + [[-5.0, 5.0]]
         if distortion>=2:
@@ -168,12 +154,12 @@ def OptimizeCamera(camera, enu_unit_coords, pxls, distortion=3, focallength = Tr
                 bounds = bounds + [[-5.0, 5.0]]
 
     # Tangential distortion parameters (p1, p2)
-    if distortion>=4:
+    if distortion is not None and distortion>=4:
         x0=x0+[0.0, 0.0]
         bounds = bounds + [[-1.0, 1.0], [-1.0, 1.0]]
 
-    optres = scipy.optimize.minimize(ResFOVCamera, x0, 
-                    args=(camera,  enu_unit_coords, pxls, distortion, focallength, centers,separate_x_y,fixed_rotation), 
+    optres = scipy.optimize.minimize(ResFOVCamera, x0,
+                    args=(camera,  enu_unit_coords, pxls, distortion, focallength, centers,separate_x_y,optimize_rotation),
                     method='SLSQP',
                         bounds=bounds)
     print(optres)

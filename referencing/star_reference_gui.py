@@ -18,6 +18,7 @@ from guihelpers.exceptions import handle_exceptions
 from guihelpers.star_digitizer import StarDigitizer
 from guihelpers.catalog_star_overlay import CatalogStarOverlay
 from guihelpers.catalog_settings_dialog import show_catalog_settings_dialog
+from guihelpers.grid_settings_dialog import show_grid_settings_dialog, GridSettings
 
 # Import local UI file
 try:
@@ -67,6 +68,12 @@ class StarReferenceWindow(QMainWindow, Ui_MainWindow):
         self.actionKameras_modifikacija.triggered.connect(
             self.CameraModification)
 
+        # Add star reference save/load actions
+        self._setup_star_reference_menu()
+
+        # Add auto star matching action
+        self._setup_auto_calibration_menu()
+
         # Redirect console output
         sys.stdout = Stream(newText=self.onUpdateText)
         sys.stderr = Stream(newText=self.onUpdateText)
@@ -95,10 +102,14 @@ class StarReferenceWindow(QMainWindow, Ui_MainWindow):
         self.show_star_circles = True
         self.show_star_names = True
 
+        # Grid settings
+        self.grid_settings = GridSettings()
+
         # Add catalog menu actions dynamically
         self._setup_catalog_menu()
         self._setup_residual_menu()
         self._setup_star_display_menu()
+        self._setup_grid_menu()
 
     def _setup_catalog_menu(self):
         """Setup catalog star menu actions."""
@@ -171,6 +182,56 @@ class StarReferenceWindow(QMainWindow, Ui_MainWindow):
         self.actionShowStarNames.triggered.connect(self.ToggleStarNames)
         self.menuZ_m_t.addAction(self.actionShowStarNames)
 
+    def _setup_grid_menu(self):
+        """Setup grid menu actions."""
+        from PyQt5.QtWidgets import QAction
+
+        # Add grid settings action to Plots menu (assuming it exists, or add to File menu)
+        # Find or create Plots menu
+        plots_menu = None
+        for action in self.menubar.actions():
+            if action.menu() and 'Att' in action.text():  # Finding the image menu
+                plots_menu = action.menu()
+                break
+
+        if plots_menu is None:
+            # If no suitable menu found, add to menubar
+            from PyQt5.QtWidgets import QMenu
+            plots_menu = QMenu("Grid", self)
+            self.menubar.addMenu(plots_menu)
+
+        plots_menu.addSeparator()
+
+        # Grid settings action
+        self.actionGridSettings = QAction("Grid Settings...", self)
+        self.actionGridSettings.triggered.connect(self.ShowGridSettings)
+        plots_menu.addAction(self.actionGridSettings)
+
+        # Export grid overlay action
+        self.actionExportGridOverlay = QAction("Export Image with Grid Overlay...", self)
+        self.actionExportGridOverlay.setEnabled(False)
+        self.actionExportGridOverlay.triggered.connect(self.ExportGridOverlay)
+        plots_menu.addAction(self.actionExportGridOverlay)
+
+    def _setup_star_reference_menu(self):
+        """Setup star reference file save/load menu actions."""
+        from PyQt5.QtWidgets import QAction
+
+        # Add to File menu
+        self.menuFails.addSeparator()
+
+        # Save stars as Alt-Az action
+        self.actionSaveStarsAltAz = QAction("Save Stars as Alt-Az...", self)
+        self.actionSaveStarsAltAz.setEnabled(False)
+        self.actionSaveStarsAltAz.triggered.connect(self.SaveStarsAltAz)
+        self.menuFails.addAction(self.actionSaveStarsAltAz)
+
+        # Load/append stars from Alt-Az action
+        self.actionLoadStarsAltAz = QAction("Load Stars from Alt-Az...", self)
+        self.actionLoadStarsAltAz.setEnabled(False)
+        self.actionLoadStarsAltAz.triggered.connect(self.LoadStarsAltAz)
+        self.menuFails.addAction(self.actionLoadStarsAltAz)
+
     def load_settings_to_ui(self):
         """Load settings from app_settings into UI components"""
         if self.app_settings.last_directory:
@@ -205,6 +266,16 @@ class StarReferenceWindow(QMainWindow, Ui_MainWindow):
         self.actionShowResidualScatter.setEnabled(has_calibration)
         self.actionShowResidualQuiver.setEnabled(has_calibration)
         self.actionTransferCatalogStars.setEnabled(has_camera and self.show_catalog_stars)
+
+        # Star reference file menu items
+        self.actionSaveStarsAltAz.setEnabled(has_camera and has_stars)
+        self.actionLoadStarsAltAz.setEnabled(has_camera)
+
+        # Grid export menu item
+        self.actionExportGridOverlay.setEnabled(has_camera)
+
+        # Auto star matching - requires camera
+        self.actionAutoStarMatch.setEnabled(has_camera)
 
     def onUpdateText(self, text):
         cursor = self.console.textCursor()
@@ -296,6 +367,13 @@ class StarReferenceWindow(QMainWindow, Ui_MainWindow):
             if p1 is not None and p2 is not None:
                 distortion_str += f', p1={p1:.6f}, p2={p2:.6f}'
 
+            # Add rational distortion if present
+            k4 = getattr(cldim.camera.camera_enu, 'k4', None)
+            k5 = getattr(cldim.camera.camera_enu, 'k5', None)
+            k6 = getattr(cldim.camera.camera_enu, 'k6', None)
+            if k4 is not None and k5 is not None and k6 is not None:
+                distortion_str += f', k4={k4:.6f}, k5={k5:.6f}, k6={k6:.6f}'
+
             print(distortion_str)
             print(f'Projection: {cameraprojections.name_by_projection(cldim.camera.camera_enu.projection)}')
 
@@ -357,7 +435,8 @@ class StarReferenceWindow(QMainWindow, Ui_MainWindow):
         if self.cloudimage is not None:
             self.MplWidget1.canvas.initplot()
             ax = self.MplWidget1.canvas.ax
-            plots.PlotAltAzGrid(self.cloudimage, ax=ax)
+            grid_kwargs = self.grid_settings.to_grid_kwargs()
+            plots.PlotAltAzGrid_v2(self.cloudimage, ax=ax, grid_kwargs=grid_kwargs)
 
             # Ensure axis limits are set for proper zoom/pan
             image_height, image_width = self.cloudimage.imagearray.shape[:2]
@@ -760,6 +839,344 @@ class StarReferenceWindow(QMainWindow, Ui_MainWindow):
         """Toggle visibility of star name labels."""
         self.show_star_names = self.actionShowStarNames.isChecked()
         self.DrawImage()
+
+    @handle_exceptions(method_name="Saving stars as Alt-Az")
+    def SaveStarsAltAz(self):
+        """Save star references as Alt-Az coordinates."""
+        if self.cloudimage is None or not hasattr(self.cloudimage, 'camera') or self.cloudimage.camera is None:
+            print("No camera available to convert stars to Alt-Az")
+            return
+
+        if len(self.cloudimage.starReferences) == 0:
+            print("No stars to save")
+            return
+
+        # Get default filename
+        default_filename = os.path.splitext(self.cloudimage.filename)[0] + '_altaz.txt'
+
+        filename = gui_save_fname(
+            directory=default_filename,
+            caption='Save stars as Alt-Az',
+            filter='(*.txt)')
+
+        if filename == '':
+            return
+
+        try:
+            # Convert stars to Alt-Az and save
+            with open(filename, 'w', encoding='utf-8') as f:
+                f.write("# Star references in Alt-Az format\n")
+                f.write("# Name\tPixel_X\tPixel_Y\tAzimuth\tAltitude\n")
+
+                for star_ref in self.cloudimage.starReferences:
+                    # Get pixel coordinates
+                    px, py = star_ref.pixelcoords
+
+                    # Get Alt-Az coordinates
+                    if star_ref.hasDirectAltAz():
+                        # Already has Alt-Az
+                        az = star_ref.altaz_coord.az.deg
+                        alt = star_ref.altaz_coord.alt.deg
+                    else:
+                        # Calculate Alt-Az from sky coordinates
+                        altaz = star_ref.getAltAzCoord(self.cloudimage.altaz)
+                        az = altaz.az.deg
+                        alt = altaz.alt.deg
+
+                    # Write in format: name, pixel_x, pixel_y, azimuth, altitude
+                    f.write(f"{star_ref.name}\t{px:.2f}\t{py:.2f}\t{az:.6f}\t{alt:.6f}\n")
+
+            print(f"Saved {len(self.cloudimage.starReferences)} stars to {filename}")
+
+        except Exception as e:
+            print(f"Error saving stars: {e}")
+
+    @handle_exceptions(method_name="Loading stars from Alt-Az")
+    def LoadStarsAltAz(self):
+        """Load and append star references from Alt-Az file."""
+        if self.cloudimage is None or not hasattr(self.cloudimage, 'camera') or self.cloudimage.camera is None:
+            print("No camera available - cannot load Alt-Az stars")
+            return
+
+        filename = gui_fname(
+            caption='Load stars from Alt-Az file',
+            filter='(*.txt)')
+
+        if filename == '':
+            return
+
+        try:
+            loaded_count = 0
+            skipped_count = 0
+
+            with open(filename, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+
+                    # Skip empty lines and comments
+                    if not line or line.startswith('#'):
+                        continue
+
+                    # Parse line: name, pixel_x, pixel_y, azimuth, altitude
+                    parts = line.split('\t')
+                    if len(parts) < 5:
+                        # Try space-separated
+                        parts = line.split()
+
+                    if len(parts) < 5:
+                        print(f"Skipping invalid line: {line}")
+                        skipped_count += 1
+                        continue
+
+                    try:
+                        name = parts[0]
+                        px = float(parts[1])
+                        py = float(parts[2])
+                        az = float(parts[3])
+                        alt = float(parts[4])
+
+
+                        # Create star reference with Alt-Az coordinates
+                        star_ref = StarReference(f"{az:.6f},{alt:.6f}", [px, py])
+                        star_ref.name = f'AZ:{name}'  # Override name
+
+                        self.cloudimage.starReferences.append(star_ref)
+                        loaded_count += 1
+
+                    except (ValueError, IndexError) as e:
+                        print(f"Error parsing line '{line}': {e}")
+                        skipped_count += 1
+
+            print(f"Loaded {loaded_count} stars from {filename}")
+            if skipped_count > 0:
+                print(f"Skipped {skipped_count} stars (duplicates or invalid)")
+            print(f"Total stars: {len(self.cloudimage.starReferences)}")
+
+            # Refresh display
+            if self.isDigitizeStars and self.star_digitizer is not None:
+                self.star_digitizer._load_existing_stars()
+            else:
+                self.DrawImage()
+
+        except Exception as e:
+            print(f"Error loading stars: {e}")
+
+    @handle_exceptions(method_name="Showing grid settings")
+    def ShowGridSettings(self):
+        """Show grid settings dialog."""
+        accepted, new_settings = show_grid_settings_dialog(
+            parent=self,
+            settings=self.grid_settings
+        )
+
+        if accepted:
+            self.grid_settings = new_settings
+            print("Grid settings updated")
+
+            # Redraw if currently showing grid
+            if hasattr(self, 'MplWidget1') and hasattr(self.MplWidget1, 'canvas'):
+                if hasattr(self.MplWidget1.canvas, 'ax'):
+                    current_children = self.MplWidget1.canvas.ax.get_children()
+                    # Check if we have contour plots (grid is being displayed)
+                    has_contours = any('QuadContourSet' in str(type(child)) for child in current_children)
+                    if has_contours:
+                        self.DrawAltAzClick()
+
+    @handle_exceptions(method_name="Exporting grid overlay")
+    def ExportGridOverlay(self):
+        """Export image with grid overlay to file."""
+        if self.cloudimage is None or not hasattr(self.cloudimage, 'camera') or self.cloudimage.camera is None:
+            print("No camera available to export grid")
+            return
+
+        # Get default filename
+        default_filename = os.path.splitext(self.cloudimage.filename)[0] + '_grid.jpg'
+
+        filename = gui_save_fname(
+            directory=default_filename,
+            caption='Export Image with Grid Overlay',
+            filter='(*.jpg *.png)')
+
+        if filename == '':
+            return
+
+        try:
+            # Get grid settings
+            grid_kwargs = self.grid_settings.to_grid_kwargs()
+
+            # Create and save grid overlay figure
+            plots.CreateGridOverlayFigure(
+                self.cloudimage,
+                grid_kwargs=grid_kwargs,
+                dpi=100,
+                filename=filename,
+                close_figure=True
+            )
+
+            h_px, w_px = self.cloudimage.imagearray.shape[:2]
+            print(f"Exported grid overlay to {filename}")
+            print(f"Image size: {w_px}x{h_px} pixels")
+
+        except Exception as e:
+            print(f"Error exporting grid overlay: {e}")
+            import traceback
+            traceback.print_exc()
+
+
+    def _setup_auto_calibration_menu(self):
+        """Add automatic star matching actions to the Darbības menu."""
+        from PyQt5.QtWidgets import QAction
+
+        self.menuZ_m_t.addSeparator()
+
+        self.actionAutoStarMatch = QAction("Auto Star Matching...", self)
+        self.actionAutoStarMatch.setEnabled(False)
+        self.actionAutoStarMatch.triggered.connect(self.AutoStarMatch)
+        self.menuZ_m_t.addAction(self.actionAutoStarMatch)
+
+        self.actionAutoMatchSettings = QAction("Auto Star Matching Settings...", self)
+        self.actionAutoMatchSettings.triggered.connect(self.ShowAutoMatchSettings)
+        self.menuZ_m_t.addAction(self.actionAutoMatchSettings)
+
+    @handle_exceptions(method_name="Auto star matching")
+    def AutoStarMatch(self):
+        """Detect stars in image, match to catalog, fill star references, update camera."""
+        import sys
+        import os
+
+        if self.cloudimage is None or self.cloudimage.camera is None:
+            print("No camera loaded - cannot run auto star matching")
+            return
+
+        star_extract_dir = os.path.abspath(os.path.join(
+            os.path.dirname(__file__), '..', 'sudrabainiemakoni', 'calibration', 'StarExtract'
+        ))
+        if star_extract_dir not in sys.path:
+            sys.path.insert(0, star_extract_dir)
+
+        from grid_star_detection import detect_stars_grid
+        from star_matching import calibrate_camera_pose, StarMatchError
+        import pandas as pd
+
+        print("Detecting stars in image...")
+        detected_stars = pd.DataFrame(detect_stars_grid(self.cloudimage.imagearray))
+        detected_stars = detected_stars.sort_values('flux', ascending=False).reset_index(drop=True)
+        detected_xy = detected_stars[['x', 'y']].values
+        print(f"  Detected {len(detected_xy)} stars")
+
+        s = self.app_settings.auto_match
+        print(f"Running automatic star matching pipeline (mag_coarse={s.max_magnitude_coarse}, "
+              f"angle_tol={s.angle_tol_deg}deg, fl_unc={s.focal_length_uncertainty}, "
+              f"n_search={s.n_search}, mag_fine={s.max_magnitude_fine}, "
+              f"nn_dist={s.nn_max_dist_px}px, optimize_intrinsics={s.optimize_intrinsics})...")
+        try:
+            # refined_camera_enu, results = calibrate_camera_pose(
+            #     detected_xy,
+            #     self.cloudimage.camera.camera_enu,
+            #     self.cloudimage.location,
+            #     self.cloudimage.date,
+            #     max_magnitude_coarse     = s.max_magnitude_coarse,
+            #     angle_tol_deg            = s.angle_tol_deg,
+            #     focal_length_uncertainty = s.focal_length_uncertainty,
+            #     n_search                 = s.n_search,
+            #     max_magnitude_fine       = s.max_magnitude_fine,
+            #     nn_max_dist_px           = s.nn_max_dist_px,
+            #     optimize_intrinsics      = s.optimize_intrinsics,
+            #     max_rms_coarse_px        = s.max_rms_coarse_px,
+            #     max_rms_fine_px          = s.max_rms_fine_px,
+            #     debug_star = 'Leo 60'
+            # )
+            print(self.cloudimage.camera.camera_enu)
+            refined_camera_enu, results = calibrate_camera_pose(
+                    detected_xy,
+                    self.cloudimage.camera.camera_enu,
+                    self.cloudimage.location,
+                    self.cloudimage.date,
+                    max_magnitude_fine=5.5,
+                    angle_tol_deg=0.1,
+                    debug_star='Leo 60'
+            )
+
+
+        except StarMatchError as e:
+            print(f"Auto star matching failed: {e}")
+            return
+
+        rms = results['rms_px']
+        n_stars = len(results['detected_xy'])
+        print(f"Calibration succeeded: {n_stars} stars, RMS = {rms:.2f} px")
+
+        if s.update_camera:
+            # Build refined Camera using from_manual_parameters, preserving existing
+            # projection type, distortion type and coefficients.
+            from sudrabainiemakoni.cloudimage_camera import Camera
+            from sudrabainiemakoni import cameraprojections
+            from sudrabainiemakoni.cloudimage_camera import name_by_distortion
+
+            old_enu = self.cloudimage.camera.camera_enu
+            image_size = self.cloudimage.camera.image_size
+            proj_name = cameraprojections.name_by_projection(old_enu.projection)
+            dist_name = name_by_distortion(old_enu.lens)
+
+            new_camera = Camera.from_manual_parameters(
+                image_size       = image_size,
+                location         = self.cloudimage.location,
+                fx               = refined_camera_enu.focallength_x_px,
+                fy               = refined_camera_enu.focallength_y_px,
+                cx               = refined_camera_enu.center_x_px,
+                cy               = refined_camera_enu.center_y_px,
+                azimuth          = refined_camera_enu.heading_deg,
+                elevation        = refined_camera_enu.tilt_deg - 90,
+                rotation         = refined_camera_enu.roll_deg,
+                k1               = old_enu.k1,
+                k2               = old_enu.k2,
+                k3               = old_enu.k3,
+                p1               = getattr(old_enu, 'p1', 0),
+                p2               = getattr(old_enu, 'p2', 0),
+                k4               = getattr(old_enu, 'k4', 0),
+                k5               = getattr(old_enu, 'k5', 0),
+                k6               = getattr(old_enu, 'k6', 0),
+                projection       = proj_name,
+                distortion_type  = dist_name,
+            )
+            self.cloudimage.camera = new_camera
+            print("Camera updated")
+        else:
+            print("Camera not updated (update_camera=False)")
+
+        # Replace star references with RA/DEC from matched catalog rows
+        self.cloudimage.starReferences = []
+        catalog_rows = results['catalog_rows']
+        matched_det_xy = results['detected_xy']
+
+        for i in range(len(matched_det_xy)):
+            px, py = matched_det_xy[i]
+            row = catalog_rows.iloc[i]
+            star = StarReference(
+                f"ra:{float(row['ra']):.6f},{float(row['dec']):.6f}",
+                [float(px), float(py)],
+            )
+            star.name = str(row['name'])
+            self.cloudimage.starReferences.append(star)
+
+        print(f"Added {len(matched_det_xy)} star references")
+        self.update_ui_state()
+        self.DrawAltAzClick()
+
+    @handle_exceptions(method_name="Auto match settings")
+    def ShowAutoMatchSettings(self):
+        """Show the auto star matching settings dialog."""
+        from guihelpers.auto_match_settings_dialog import show_auto_match_settings_dialog
+
+        accepted, new_settings = show_auto_match_settings_dialog(
+            parent=self,
+            settings=self.app_settings.auto_match,
+        )
+
+        if accepted:
+            self.app_settings.auto_match = new_settings
+            self.app_settings.save_to_file()
+            print(f"Auto match settings saved")
 
 
 def excepthook(exc_type, exc_value, exc_tb):

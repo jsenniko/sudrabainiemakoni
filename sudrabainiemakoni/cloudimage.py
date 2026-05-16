@@ -310,13 +310,19 @@ class CloudImage:
             return []
 
 
-    def GetAltAzGrid_fromcamera(self):
-        return Camera.GetAltAzGrid_fromcamera(self.imagearray.shape[1], self.imagearray.shape[0], self.camera.camera_enu)
+    def GetAltAzGrid_fromcamera(self, buffer=False):
+        return Camera.GetAltAzGrid_fromcamera(self.imagearray.shape[1], self.imagearray.shape[0], self.camera.camera_enu, buffer=buffer)
 
 
     def PrepareCamera(self, **params):
         image_size = (self.imagearray.shape[1], self.imagearray.shape[0])
-        self.camera = Camera(image_size)
+
+        # If camera exists with valid state, copy all parameters to new camera
+        if hasattr(self, 'camera') and self.camera is not None and \
+           (self.camera.camera_enu is not None or self.camera.camera_ecef is not None):
+            self.camera = Camera.from_camera(self.camera, image_size)
+        else:
+            self.camera = Camera(image_size)
 
         # Extract focal length from EXIF if not provided in params
         if 'focallength_35mm' not in params:
@@ -329,6 +335,9 @@ class CloudImage:
         image_size = (self.imagearray.shape[1], self.imagearray.shape[0])
         self.camera = Camera(image_size)
         self.camera.load(filename)
+        #TODO refactor to camera
+        if self.camera.camera_enu is not None and self.camera.camera_ecef is None:
+            self.camera.camera_ecef = self.camera.camera_ecef_from_camera_enu(self.camera.camera_enu, self.location)
     def SaveCamera(self, filename):
         self.camera.save(filename)
 

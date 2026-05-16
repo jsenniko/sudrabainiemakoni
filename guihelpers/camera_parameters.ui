@@ -65,6 +65,16 @@
             <string>4 - Fourth Order (k1, k2, k3, p1, p2 - tangential)</string>
            </property>
           </item>
+          <item>
+           <property name="text">
+            <string>5 - Fifth Order (k1, k2, k3, p1, p2, k4, k5, k6 - rational)</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>6 - (k4, k5, k6 - rational)</string>
+           </property>
+          </item>
          </widget>
         </item>
        </layout>
@@ -139,23 +149,104 @@ Stereographic: Wide-angle fisheye lens</string>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_4">
       <item>
-       <widget class="QCheckBox" name="checkBox_centers">
-        <property name="text">
-         <string>Optimize camera center position</string>
+       <widget class="QGroupBox" name="groupBox_rotation">
+        <property name="title">
+         <string>Rotation</string>
+        </property>
+        <property name="checkable">
+         <bool>true</bool>
         </property>
         <property name="checked">
          <bool>true</bool>
         </property>
+        <layout class="QVBoxLayout" name="verticalLayout_rotation">
+         <item>
+          <widget class="QLabel" name="label_rotation_info">
+           <property name="text">
+            <string>Optimize camera rotation (heading, tilt, roll)</string>
+           </property>
+           <property name="styleSheet">
+            <string>color: gray; font-size: 9pt;</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </widget>
       </item>
       <item>
-       <widget class="QCheckBox" name="checkBox_separate_xy">
-        <property name="text">
-         <string>Use separate focal lengths for X and Y axes</string>
+       <widget class="QGroupBox" name="groupBox_intrinsics">
+        <property name="title">
+         <string>Intrinsics (Focal Length and Centers)</string>
+        </property>
+        <property name="checkable">
+         <bool>true</bool>
         </property>
         <property name="checked">
          <bool>true</bool>
         </property>
+        <layout class="QVBoxLayout" name="verticalLayout_intrinsics">
+         <item>
+          <widget class="QCheckBox" name="checkBox_focallength">
+           <property name="text">
+            <string>Optimize focal length</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="checkBox_separate_xy">
+           <property name="text">
+            <string>Use separate focal lengths for X and Y axes</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="checkBox_centers">
+           <property name="text">
+            <string>Optimize camera center position (principal point)</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="groupBox_distortion_opt">
+        <property name="title">
+         <string>Distortion Optimization</string>
+        </property>
+        <property name="checkable">
+         <bool>true</bool>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_distortion_opt">
+         <item>
+          <widget class="QLabel" name="label_distortion_opt_info">
+           <property name="text">
+            <string>When checked, optimize distortion coefficients. When unchecked, keep existing distortion values.</string>
+           </property>
+           <property name="styleSheet">
+            <string>color: gray; font-size: 9pt;</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </widget>
       </item>
      </layout>

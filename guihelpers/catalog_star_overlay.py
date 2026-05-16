@@ -75,7 +75,7 @@ class CatalogStarOverlay:
 
         try:
             self.catalog_df = project_catalog_stars(
-                self.camera,
+                self.camera.camera_enu,
                 self.location,
                 self.observation_time,
                 overshoot_px=self.overshoot_px,
@@ -138,11 +138,12 @@ class CatalogStarOverlay:
             # Draw marker (use + symbol to distinguish from digitized stars)
             marker = self.ax.plot(
                 x, y,
-                marker='+',
-                markersize=10,
-                markeredgewidth=2,
+                marker='s',
+                markersize=6,
+                markeredgewidth=1,
                 color='cyan',
-                alpha=0.7
+                alpha=0.7,
+                markerfacecolor='none' 
             )[0]
             self.artists.append(marker)
 
@@ -150,11 +151,13 @@ class CatalogStarOverlay:
             label = self.ax.annotate(
                 f"{name} ({mag:.1f})",
                 xy=(x, y),
-                xytext=(5, 5),
+                xytext=(-5, -5),
                 textcoords='offset pixels',
                 color='cyan',
                 fontsize=8,
-                alpha=0.7
+                alpha=0.7,
+                ha='right',
+                va='top'
             )
             self.artists.append(label)
 
