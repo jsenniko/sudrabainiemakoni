@@ -54,15 +54,25 @@ class GridSettings:
             grid_kwargs['major_alt_step'] = self.major_alt_step
 
         # Add grid styles
-        grid_kwargs['minor_grid_style'] = {
-            'colors': self.grid_color,
-            'linestyles': self.minor_linestyle,
-            'linewidths': self.minor_linewidth
+        grid_kwargs['minor_az_style'] = {
+            'color': self.grid_color,
+            'linestyle': self.minor_linestyle,
+            'linewidth': self.minor_linewidth
         }
-        grid_kwargs['major_grid_style'] = {
-            'colors': self.grid_color,
-            'linestyles': self.major_linestyle,
-            'linewidths': self.major_linewidth
+        grid_kwargs['major_az_style'] = {
+            'color': self.grid_color,
+            'linestyle': self.major_linestyle,
+            'linewidth': self.major_linewidth
+        }
+        grid_kwargs['minor_alt_style'] = {
+            'color': self.grid_color,
+            'linestyle': self.minor_linestyle,
+            'linewidth': self.minor_linewidth
+        }
+        grid_kwargs['major_alt_style'] = {
+            'color': self.grid_color,
+            'linestyle': self.major_linestyle,
+            'linewidth': self.major_linewidth
         }
 
         return grid_kwargs

@@ -193,11 +193,11 @@ class CameraModificationDialog(QtWidgets.QDialog):
             self.doubleSpinBox_p2.setValue(p2)
 
             # Set rational checkbox based on whether k4/k5/k6 is non-zero
-            use_rational = (abs(k4) > 1e-9 or abs(k5) > 1e-9 or abs(k6) > 1e-9)
+            use_rational = bool(abs(k4) > 1e-9 or abs(k5) > 1e-9 or abs(k6) > 1e-9) #bool - for newer versions numpy.bool is not accepted
             self.checkBox_use_rational.setChecked(use_rational)
 
             # Set tangential checkbox based on whether p1 or p2 is non-zero
-            use_tangential = (abs(p1) > 1e-9 or abs(p2) > 1e-9)
+            use_tangential = bool(abs(p1) > 1e-9 or abs(p2) > 1e-9)
             self.checkBox_use_tangential.setChecked(use_tangential)
             
             # Get projection type
@@ -217,6 +217,7 @@ class CameraModificationDialog(QtWidgets.QDialog):
                 
         except Exception as e:
             print(f"Error loading camera parameters: {e}")
+            raise
             # Set default values if loading fails
             self.set_default_values()
     

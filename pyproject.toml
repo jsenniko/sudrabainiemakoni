@@ -14,7 +14,7 @@ dependencies = [
     "pandas",
     "scipy",
     "pyproj",
-    "astropy<6",
+    "astropy",
     "exifread",
     "cameratransform==1.1",
     "pymap3d",
@@ -39,17 +39,20 @@ geotiff = [
     "rasterio"
 ]
 gui = [
+    "scikit-image",
     "PyQt5",
     "matplotlib",
-    "tilemapbase"
+    "tilemapbase",
+    "platformdirs"
 ]
 
 [project.scripts]
 sudrabainie = "guihelpers.sudrabainie:main"
 
 [tool.setuptools]
-packages = ["sudrabainiemakoni", "sudrabainiemakoni.calibration", "sudrabainiemakoni.calibration.lens_distortions", "guihelpers", "referencing"]
+packages = ["sudrabainiemakoni", "sudrabainiemakoni.calibration", "sudrabainiemakoni.calibration.lens_distortions", "guihelpers"]
 zip-safe = false
 
-# Note: guihelpers is kept as a separate top-level package for backward compatibility
-# It can also be accessed as sudrabainiemakoni.gui in documentation
+[tool.setuptools.package-data]
+guihelpers = ["*.ui"]
+

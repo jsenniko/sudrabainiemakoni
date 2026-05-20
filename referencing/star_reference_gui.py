@@ -6,7 +6,7 @@ from PyQt5 import QtGui, QtCore
 from sudrabainiemakoni.cloudimage import CloudImage
 from sudrabainiemakoni.cloudimage_camera import CameraCalibrationParams
 from sudrabainiemakoni.starreference import StarReference
-from sudrabainiemakoni import cameraprojections, plots
+from sudrabainiemakoni import cameraprojections, plots, plots_altazgrid
 
 # Import from guihelpers (separate top-level package)
 from guihelpers.camera_parameters import show_camera_parameters_dialog
@@ -436,7 +436,8 @@ class StarReferenceWindow(QMainWindow, Ui_MainWindow):
             self.MplWidget1.canvas.initplot()
             ax = self.MplWidget1.canvas.ax
             grid_kwargs = self.grid_settings.to_grid_kwargs()
-            plots.PlotAltAzGrid_v2(self.cloudimage, ax=ax, grid_kwargs=grid_kwargs)
+            plots_altazgrid.PlotAltAzGrid_v2(self.cloudimage.imagearray, self.cloudimage.camera.camera_enu,
+                                              ax=ax, grid_kwargs=grid_kwargs)
 
             # Ensure axis limits are set for proper zoom/pan
             image_height, image_width = self.cloudimage.imagearray.shape[:2]
