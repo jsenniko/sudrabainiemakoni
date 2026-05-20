@@ -39,6 +39,7 @@ geotiff = [
     "rasterio"
 ]
 gui = [
+    "photutils",
     "scikit-image",
     "PyQt5",
     "matplotlib",

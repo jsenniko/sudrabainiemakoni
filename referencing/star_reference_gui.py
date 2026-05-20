@@ -979,9 +979,7 @@ class StarReferenceWindow(QMainWindow, Ui_MainWindow):
                 if hasattr(self.MplWidget1.canvas, 'ax'):
                     current_children = self.MplWidget1.canvas.ax.get_children()
                     # Check if we have contour plots (grid is being displayed)
-                    has_contours = any('QuadContourSet' in str(type(child)) for child in current_children)
-                    if has_contours:
-                        self.DrawAltAzClick()
+                    self.DrawAltAzClick()
 
     @handle_exceptions(method_name="Exporting grid overlay")
     def ExportGridOverlay(self):
