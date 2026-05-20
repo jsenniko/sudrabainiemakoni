@@ -35,8 +35,10 @@ class DistortionOrder(IntEnum):
     SECOND_ORDER = 2
     THIRD_ORDER = 3
     FOURTH_ORDER = 4  # Includes tangential distortion (p1, p2)
-    FIFTH_ORDER = 5   # Includes rational distortion (k4, k5, k6)
-    SIXTH_ORDER = 6   # Includes only rational distortion (k4, k5, k6)
+    FIFTH_ORDER = 5   # Includes rational distortion (k1,k2,k3,k4,k5,k6)
+    SIXTH_ORDER = 6   # Rational only (k4, k5, k6)
+    SEVENTH_ORDER = 7 # Rational partial (k4, k5)
+    EIGHTH_ORDER = 8  # Rational partial (k4 only)
 
 ProjectionType = Literal['rectilinear', 'equirectangular', 'stereographic']
 
@@ -102,7 +104,7 @@ class CameraCalibrationParams:
     """
     distortion: DistortionOrder | None = DistortionOrder.NONE
     optimize_rotation: bool = True
-    focallength: bool = True
+    optimize_focallength: bool = True
     centers: bool = True
     separate_x_y: bool = True
     projectiontype: ProjectionType = 'rectilinear'
@@ -112,7 +114,7 @@ class CameraCalibrationParams:
         return {
             'distortion': int(self.distortion) if self.distortion is not None else None,
             'optimize_rotation': self.optimize_rotation,
-            'focallength': self.focallength,
+            'optimize_focallength': self.optimize_focallength,
             'centers': self.centers,
             'separate_x_y': self.separate_x_y,
             'projectiontype': self.projectiontype
@@ -125,7 +127,7 @@ class CameraCalibrationParams:
         return cls(
             distortion=DistortionOrder(distortion_val) if distortion_val is not None else None,
             optimize_rotation=params.get('optimize_rotation', True),
-            focallength=params.get('focallength', True),
+            optimize_focallength=params.get('optimize_focallength', True),
             centers=params.get('centers', True),
             separate_x_y=params.get('separate_x_y', True),
             projectiontype=params.get('projectiontype', 'rectilinear')
@@ -139,7 +141,7 @@ class CameraCalibrationParams:
             Tuple of (is_valid, error_message)
         """
         if self.distortion is not None:
-            if not isinstance(self.distortion, (int, DistortionOrder)) or not (0 <= int(self.distortion) <=6):
+            if not isinstance(self.distortion, (int, DistortionOrder)) or not (0 <= int(self.distortion) <= 8):
                 return False, f"Distortion order must be 0-6 or None, got {self.distortion}"
 
         valid_projections = ['rectilinear', 'equirectangular', 'stereographic']
@@ -149,8 +151,8 @@ class CameraCalibrationParams:
         if not isinstance(self.optimize_rotation, bool):
             return False, f"Optimize rotation parameter must be boolean, got {type(self.optimize_rotation)}"
 
-        if not isinstance(self.focallength, bool):
-            return False, f"Focallength parameter must be boolean, got {type(self.focallength)}"
+        if not isinstance(self.optimize_focallength, bool):
+            return False, f"Focallength parameter must be boolean, got {type(self.optimize_focallength)}"
 
         if not isinstance(self.centers, bool):
             return False, f"Centers parameter must be boolean, got {type(self.centers)}"
@@ -360,7 +362,8 @@ class Camera:
         camera.k1=x[7]
         return np.sqrt(np.mean((camera.imageFromSpace(space_coords)-pxls)**2))
 
-    def Fit(self, star_references, location, obs_time, distortion=0, optimize_rotation=True, focallength=True, centers=True, separate_x_y=True,
+    def Fit(self, star_references, location, obs_time, distortion=0, optimize_rotation=True, optimize_focallength=True,
+            focallength=True, centers=True, separate_x_y=True,
             projectiontype='rectilinear', focallength_35mm=None):
         """
         Fit camera parameters using star calibration data.
@@ -442,7 +445,7 @@ class Camera:
                 print(f"DEBUG: Preserving existing distortion - k1={existing_k1:.6f}, k2={existing_k2:.6f}, k3={existing_k3:.6f}, p1={existing_p1:.6f}, p2={existing_p2:.6f}")
             if not optimize_rotation:
                 print(f"DEBUG: Preserving existing rotation - heading={existing_heading:.2f}°, tilt={existing_tilt:.2f}°, roll={existing_roll:.2f}°")
-            if not focallength:
+            if not optimize_focallength:
                 print(f"DEBUG: Preserving existing focal lengths - fx={existing_fx:.2f}, fy={existing_fy:.2f}")
             if not centers:
                 print(f"DEBUG: Preserving existing centers - cx={existing_cx:.2f}, cy={existing_cy:.2f}")
@@ -489,7 +492,7 @@ class Camera:
             print(f"DEBUG: Restored rotation to camera - heading={self.camera_enu.heading_deg:.2f}°, tilt={self.camera_enu.tilt_deg:.2f}°, roll={self.camera_enu.roll_deg:.2f}°")
 
         # Restore intrinsics if not optimizing
-        if not focallength and existing_fx is not None:
+        if not optimize_focallength and existing_fx is not None:
             self.camera_enu.focallength_x_px = existing_fx
             self.camera_enu.focallength_y_px = existing_fy
             print(f"DEBUG: Restored focal lengths to camera - fx={self.camera_enu.focallength_x_px:.2f}, fy={self.camera_enu.focallength_y_px:.2f}")
@@ -519,14 +522,14 @@ class Camera:
         self.camera_enu.elevation_m=0
         if len(pxls)<6:
             self.camera_enu = optimize_camera.OptimizeCamera(self.camera_enu, enu_unit_coords, pxls,
-                                                            distortion=distortion, focallength=focallength, centers=centers, separate_x_y=separate_x_y,
+                                                            distortion=distortion, optimize_focallength=optimize_focallength, centers=centers, separate_x_y=separate_x_y,
                                                             optimize_rotation=optimize_rotation,
                                                             f_bounds=f_bounds, cx_bounds=cx_bounds, cy_bounds=cy_bounds
                                                             )
         else:
             from sudrabainiemakoni.optimize_camera_cv2 import optimize_camera_cv2
             self.camera_enu = optimize_camera_cv2(self.camera_enu, enu_unit_coords, pxls,
-                                                            distortion=distortion, focallength=focallength, centers=centers, separate_x_y=separate_x_y,
+                                                            distortion=distortion, optimize_focallength=optimize_focallength, centers=centers, separate_x_y=separate_x_y,
                                                             optimize_rotation=optimize_rotation
                                                             )
 

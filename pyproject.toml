@@ -20,7 +20,9 @@ dependencies = [
     "pymap3d",
     "pykrige",
     "simplekml",
-    "imageio"
+    "imageio",
+    "pytz",
+    "opencv_python"
 ]
 requires-python = ">=3.7"
 
@@ -46,7 +48,7 @@ gui = [
 sudrabainie = "guihelpers.sudrabainie:main"
 
 [tool.setuptools]
-packages = ["sudrabainiemakoni", "sudrabainiemakoni.calibration", "guihelpers", "referencing"]
+packages = ["sudrabainiemakoni", "sudrabainiemakoni.calibration", "sudrabainiemakoni.calibration.lens_distortions", "guihelpers", "referencing"]
 zip-safe = false
 
 # Note: guihelpers is kept as a separate top-level package for backward compatibility

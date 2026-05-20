@@ -99,7 +99,7 @@ def reload_camera(camera, distortion_class = BrownLensDistortionLimited):
         setattr(camnew, key, variables[key])
     return camnew
 
-def OptimizeCamera(camera, enu_unit_coords, pxls, distortion=3, focallength = True, centers=True,  separate_x_y=True, optimize_rotation=True,
+def OptimizeCamera(camera, enu_unit_coords, pxls, distortion=3, optimize_focallength = True, centers=True,  separate_x_y=True, optimize_rotation=True,
                    f_bounds=[500,10000], cx_bounds=[0, 6000], cy_bounds=[0,4000]):
     """
     Optimize camera parameters.
@@ -131,7 +131,7 @@ def OptimizeCamera(camera, enu_unit_coords, pxls, distortion=3, focallength = Tr
     #print(f_bounds, cx_bounds, cy_bounds)
     x0 = []
     bounds = []
-    if focallength:
+    if optimize_focallength:
         x0 = x0 + [fx]
 
         bounds=[f_bounds]
@@ -159,7 +159,7 @@ def OptimizeCamera(camera, enu_unit_coords, pxls, distortion=3, focallength = Tr
         bounds = bounds + [[-1.0, 1.0], [-1.0, 1.0]]
 
     optres = scipy.optimize.minimize(ResFOVCamera, x0,
-                    args=(camera,  enu_unit_coords, pxls, distortion, focallength, centers,separate_x_y,optimize_rotation),
+                    args=(camera,  enu_unit_coords, pxls, distortion, optimize_focallength, centers,separate_x_y,optimize_rotation),
                     method='SLSQP',
                         bounds=bounds)
     print(optres)
