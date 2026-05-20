@@ -72,7 +72,17 @@
           </item>
           <item>
            <property name="text">
-            <string>6 - (k4, k5, k6 - rational)</string>
+            <string>6 - (k4, k5, k6 - rational only)</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>7 - (k4, k5 - rational partial)</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>8 - (k4 only - rational partial)</string>
            </property>
           </item>
          </widget>

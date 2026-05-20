@@ -145,11 +145,11 @@ class CameraParametersDialog(QtWidgets.QDialog):
 
         # Optimization group checkboxes
         self.groupBox_rotation.setChecked(self.params.optimize_rotation)
-        self.groupBox_intrinsics.setChecked(self.params.focallength or self.params.centers)
+        self.groupBox_intrinsics.setChecked(self.params.optimize_focallength or self.params.centers)
         self.groupBox_distortion_opt.setChecked(self.params.distortion is not None)
 
         # Individual optimization options
-        self.checkBox_focallength.setChecked(self.params.focallength)
+        self.checkBox_focallength.setChecked(self.params.optimize_focallength)
         self.checkBox_centers.setChecked(self.params.centers)
         self.checkBox_separate_xy.setChecked(self.params.separate_x_y)
     
@@ -173,12 +173,12 @@ class CameraParametersDialog(QtWidgets.QDialog):
 
         # Individual intrinsics options (only matter if intrinsics group is checked)
         if self.groupBox_intrinsics.isChecked():
-            self.params.focallength = self.checkBox_focallength.isChecked()
+            self.params.optimize_focallength = self.checkBox_focallength.isChecked()
             self.params.centers = self.checkBox_centers.isChecked()
             self.params.separate_x_y = self.checkBox_separate_xy.isChecked()
         else:
             # When intrinsics group is unchecked, disable all intrinsics optimization
-            self.params.focallength = False
+            self.params.optimize_focallength = False
             self.params.centers = False
             self.params.separate_x_y = False
     

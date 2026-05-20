@@ -9,12 +9,12 @@ def Orientation_fromRotation(rr: Rotation):
     return {"roll_deg": -eul[0], "tilt_deg": -eul[1], "heading_deg": eul[2]}
 
 
-def optimize_camera_cv2(camera, enu_unit_coords, pxls, distortion=3, focallength=True, centers=True, separate_x_y=True, optimize_rotation=True):
+def optimize_camera_cv2(camera, enu_unit_coords, pxls, distortion=6, optimize_focallength=True, centers=True, separate_x_y=True, optimize_rotation=True):
     import cv2
 
     # print(f"\n{'='*60}")
     # print(f"DEBUG: optimize_camera_cv2 called")
-    # print(f"  Optimization flags: distortion={distortion}, optimize_rotation={optimize_rotation}, focallength={focallength}, centers={centers}, separate_x_y={separate_x_y}")
+    # print(f"  Optimization flags: distortion={distortion}, optimize_rotation={optimize_rotation}, focallength={optimize_focallength}, centers={centers}, separate_x_y={separate_x_y}")
     # print(f"  Input camera parameters:")
     # print(f"    Rotation: heading={camera.heading_deg:.2f}°, tilt={camera.tilt_deg:.2f}°, roll={camera.roll_deg:.2f}°")
     # print(f"    Intrinsics: fx={camera.focallength_x_px:.2f}, fy={camera.focallength_y_px:.2f}, cx={camera.center_x_px:.2f}, cy={camera.center_y_px:.2f}")
@@ -62,13 +62,13 @@ def optimize_camera_cv2(camera, enu_unit_coords, pxls, distortion=3, focallength
         # Extract distortion parameters
         if distortion_level is not None:
             k1 = k2 = k3 = p1 = p2 = k4 = k5 = k6 = 0.0
-            if distortion_level >= 1 and distortion_level!=6:
+            if distortion_level >= 1 and distortion_level<6:
                 k1 = params[n]
                 n += 1
-                if distortion_level >= 2 and distortion_level!=6:
+                if distortion_level >= 2 and distortion_level<6:
                     k2 = params[n]
                     n += 1
-                    if distortion_level >= 3 and distortion_level!=6:
+                    if distortion_level >= 3 and distortion_level<6:
                         k3 = params[n]
                         n += 1
 
@@ -79,9 +79,13 @@ def optimize_camera_cv2(camera, enu_unit_coords, pxls, distortion=3, focallength
 
             if distortion_level >= 5:
                 k4 = params[n]
-                k5 = params[n+1]
-                k6 = params[n+2]
-                n += 3
+                n += 1
+                if distortion_level <= 7:
+                    k5 = params[n]
+                    n += 1
+                if distortion_level <= 6:
+                    k6 = params[n]
+                    n += 1
         else:
             # Use camera's current distortion coefficients
             k1 = getattr(camera_ref, 'k1', 0.0)
@@ -135,7 +139,7 @@ def optimize_camera_cv2(camera, enu_unit_coords, pxls, distortion=3, focallength
     if optimize_rotation:
         x0.extend(rvec0.ravel())
 
-    if focallength:
+    if optimize_focallength:
         x0.append(fx0)
         if separate_x_y:
             x0.append(fy0)
@@ -144,11 +148,11 @@ def optimize_camera_cv2(camera, enu_unit_coords, pxls, distortion=3, focallength
         x0.extend([cx0, cy0])
 
     # Radial distortion parameters (k1, k2, k3)
-    if distortion is not None and distortion >= 1 and distortion!=6:
+    if distortion is not None and distortion >= 1 and distortion<6:
         x0.append(0.0)
-        if distortion >= 2 and distortion!=6:
+        if distortion >= 2:
             x0.append(0.0)
-            if distortion >= 3 and distortion!=6:
+            if distortion >= 3:
                 x0.append(0.0)
 
     # Tangential distortion parameters (p1, p2)
@@ -157,14 +161,21 @@ def optimize_camera_cv2(camera, enu_unit_coords, pxls, distortion=3, focallength
 
     # Rational distortion parameters (k4, k5, k6)
     if distortion is not None and distortion >= 5:
-        x0.extend([0.0, 0.0, 0.0])
+        # k4
+        x0.append(0.0)
+        if distortion<=7:
+            # k5
+            x0.append(0.0)
+        if distortion<=6:
+            # k6
+            x0.append(0.0)
 
     x0 = np.array(x0)
 
     result = least_squares(
         residuals,
         x0,
-        args=(enu, px, camera, distortion, focallength, centers, separate_x_y, optimize_rotation),
+        args=(enu, px, camera, distortion, optimize_focallength, centers, separate_x_y, optimize_rotation),
         method='lm',
         ftol=1e-10,
         xtol=1e-10,
@@ -182,7 +193,7 @@ def optimize_camera_cv2(camera, enu_unit_coords, pxls, distortion=3, focallength
         rr = Rotation.from_euler('ZXZ', [-camera.roll_deg, -camera.tilt_deg, camera.heading_deg], degrees=True)
         rvec_opt = rr.as_rotvec()
 
-    if focallength:
+    if optimize_focallength:
         if separate_x_y:
             fx = result.x[n]
             fy = result.x[n+1]
@@ -204,13 +215,13 @@ def optimize_camera_cv2(camera, enu_unit_coords, pxls, distortion=3, focallength
 
     if distortion is not None:
         k1 = k2 = k3 = p1 = p2 = k4 = k5 = k6 = 0.0
-        if distortion >= 1 and distortion!=6:
+        if distortion >= 1 and distortion<6:
             k1 = result.x[n]
             n += 1
-            if distortion >= 2 and distortion!=6:
+            if distortion >= 2:
                 k2 = result.x[n]
                 n += 1
-                if distortion >= 3 and distortion!=6:
+                if distortion >= 3:
                     k3 = result.x[n]
                     n += 1
 
@@ -221,9 +232,13 @@ def optimize_camera_cv2(camera, enu_unit_coords, pxls, distortion=3, focallength
 
         if distortion >= 5:
             k4 = result.x[n]
-            k5 = result.x[n+1]
-            k6 = result.x[n+2]
-            n += 3
+            n += 1
+            if distortion <= 7:
+                k5 = result.x[n]
+                n += 1
+            if distortion <= 6:
+                k6 = result.x[n]
+                n += 1
     else:
         # Keep existing distortion coefficients
         k1 = getattr(camera, 'k1', 0.0)
@@ -239,9 +254,10 @@ def optimize_camera_cv2(camera, enu_unit_coords, pxls, distortion=3, focallength
     #print(f"  Rotation optimized: {optimize_rotation}")
     rr_result = Rotation.from_rotvec(rvec_opt)
     angles_result = Orientation_fromRotation(rr_result)
+
     print(f"    heading={angles_result['heading_deg']:.2f}°, tilt={angles_result['tilt_deg']:.2f}°, roll={angles_result['roll_deg']:.2f}°")
-    print(f"  Intrinsics: fx={fx:.2f}, fy={fy:.2f}, cx={cx:.2f}, cy={cy:.2f}")
-    print(f"  Distortion: k1={k1:.6f}, k2={k2:.6f}, k3={k3:.6f}, p1={p1:.6f}, p2={p2:.6f}")
+    print(f"  Intrinsics: {fx=:.2f}, {fy=:.2f}, {cx=:.2f}, {cy=:.2f}")
+    print(f"  Distortion: {k1=:.6f}, {k2=:.6f}, {k3=:.6f},  {k4=:.6f}, {k5=:.6f}, {k6=:.6f}, {p1=:.6f}, {p2=:.6f}")
 
     # Calculate RMS error
     res = result.fun.reshape(-1, 2)
@@ -275,7 +291,7 @@ def optimize_camera_cv2(camera, enu_unit_coords, pxls, distortion=3, focallength
             sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'lens_distortions'))
             from cv2_lens_distortion import OpenCVBrownLensDistortion
         distortion_class = OpenCVBrownLensDistortion
-    elif distortion in [5,6]:
+    elif distortion in [5,6,7,8]:
         try:
             from sudrabainiemakoni.calibration.lens_distortions.lensdistortions import RationalDistortionLimited
         except ImportError:
@@ -301,6 +317,13 @@ def optimize_camera_cv2(camera, enu_unit_coords, pxls, distortion=3, focallength
     camnew = ct.Camera(ct.RectilinearProjection(), ct.SpatialOrientation(elevation_m=0.0), distortion_class())
     rr = Rotation.from_rotvec(rvec_opt)
     cv2_cam = Orientation_fromRotation(rr)
+
+    if (fx<0) and (fy<0):
+        fx = -fx
+        fy = -fy
+        rr['roll_deg'] = rr['roll_deg'] - 180.0
+
+
     camnew.image_width_px = w
     camnew.image_height_px = h
     camnew.focallength_x_px = fx
