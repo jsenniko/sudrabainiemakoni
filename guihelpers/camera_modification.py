@@ -10,6 +10,7 @@ Author: Generated for sudrabainiemakoni project
 
 import sys
 import os
+import json
 import numpy as np
 from PyQt5 import QtWidgets, uic
 from PyQt5.QtCore import Qt
@@ -89,6 +90,10 @@ class CameraModificationDialog(QtWidgets.QDialog):
 
         # Tangential distortion checkbox
         self.checkBox_use_tangential.stateChanged.connect(self.on_tangential_checkbox_changed)
+
+        # JSON import/export buttons
+        self.pushButton_apply_json.clicked.connect(self.on_apply_json)
+        self.pushButton_export_json.clicked.connect(self.on_export_to_json)
     
     def setup_tooltips(self):
         """Setup helpful tooltips for UI elements"""
@@ -412,7 +417,125 @@ class CameraModificationDialog(QtWidgets.QDialog):
         if not is_enabled:
             self.doubleSpinBox_p1.setValue(0.0)
             self.doubleSpinBox_p2.setValue(0.0)
-    
+
+    def on_apply_json(self):
+        """Parse JSON from the text area and fill all controls"""
+        text = self.plainTextEdit_json.toPlainText().strip()
+        if not text:
+            QMessageBox.warning(self, "Empty Input", "Please paste a JSON string first.")
+            return
+
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError as e:
+            QMessageBox.warning(self, "Invalid JSON", f"Could not parse JSON:\n{e}")
+            return
+
+        try:
+            self._load_from_json_dict(data)
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to apply JSON parameters:\n{e}")
+
+    def on_export_to_json(self):
+        """Fill the JSON textarea with parameters from the current camera"""
+        if self.camera is None or self.camera.camera_enu is None:
+            QMessageBox.warning(self, "No Camera", "No camera loaded to export.")
+            return
+        from sudrabainiemakoni.cloudimage_camera import name_by_distortion
+        cam = self.camera.camera_enu
+        keys = cam.parameters.parameters.keys()
+        data = {key: getattr(cam, key) for key in keys}
+        data['distortiontype'] = name_by_distortion(cam.lens)
+        from sudrabainiemakoni import cameraprojections
+        data['projectiontype'] = cameraprojections.name_by_projection(cam.projection)
+        self.plainTextEdit_json.setPlainText(json.dumps(data, indent=2))
+
+    def _load_from_json_dict(self, data: dict):
+        """Fill controls from a parsed camera JSON dictionary"""
+        # Focal lengths
+        fx = float(data.get('focallength_x_px', self.doubleSpinBox_fx.value()))
+        fy = float(data.get('focallength_y_px', self.doubleSpinBox_fy.value()))
+
+        # Use image_width from JSON for mm conversion if available, otherwise fall back
+        image_width_json = data.get('image_width_px')
+        if image_width_json:
+            image_width = float(image_width_json)
+        else:
+            image_width, _ = self.get_image_dimensions()
+
+        self._updating_focal_length = True
+        try:
+            self.doubleSpinBox_fx.setValue(fx)
+            self.doubleSpinBox_fy.setValue(fy)
+            self.doubleSpinBox_fx_mm.setValue(self.px_to_mm(fx, image_width))
+            self.doubleSpinBox_fy_mm.setValue(self.px_to_mm(fy, image_width))
+        finally:
+            self._updating_focal_length = False
+
+        # Center position
+        if 'center_x_px' in data:
+            self.doubleSpinBox_cx.setValue(float(data['center_x_px']))
+        if 'center_y_px' in data:
+            self.doubleSpinBox_cy.setValue(float(data['center_y_px']))
+
+        # Orientation — JSON stores raw tilt_deg/heading_deg/roll_deg
+        # Apply same logic as get_azimuth_elevation_rotation in cloudimage_camera.py
+        if 'tilt_deg' in data and 'heading_deg' in data and 'roll_deg' in data:
+            tilt = float(data['tilt_deg'])
+            heading = float(data['heading_deg'])
+            roll = float(data['roll_deg'])
+            if tilt < 0:
+                azimuth = 180 + heading if heading < 0 else heading - 180
+                tilt_abs = -tilt
+                roll_conv = roll - 180 if roll > 0 else 180 + roll
+            else:
+                azimuth = heading
+                tilt_abs = tilt
+                roll_conv = roll
+            elevation = tilt_abs - 90
+            self.doubleSpinBox_azimuth.setValue(azimuth)
+            self.doubleSpinBox_elevation.setValue(elevation)
+            self.doubleSpinBox_rotation.setValue(roll_conv)
+        else:
+            if 'tilt_deg' in data:
+                self.doubleSpinBox_elevation.setValue(float(data['tilt_deg']) - 90.0)
+            if 'heading_deg' in data:
+                self.doubleSpinBox_azimuth.setValue(float(data['heading_deg']))
+            if 'roll_deg' in data:
+                self.doubleSpinBox_rotation.setValue(float(data['roll_deg']))
+
+        # Distortion k1-k3
+        for name in ('k1', 'k2', 'k3'):
+            if name in data:
+                getattr(self, f'doubleSpinBox_{name}').setValue(float(data[name]))
+
+        # Rational distortion k4-k6
+        k4 = float(data.get('k4', 0.0))
+        k5 = float(data.get('k5', 0.0))
+        k6 = float(data.get('k6', 0.0))
+        use_rational = abs(k4) > 1e-9 or abs(k5) > 1e-9 or abs(k6) > 1e-9
+        self.checkBox_use_rational.setChecked(use_rational)
+        self.doubleSpinBox_k4.setValue(k4)
+        self.doubleSpinBox_k5.setValue(k5)
+        self.doubleSpinBox_k6.setValue(k6)
+
+        # Tangential distortion p1/p2
+        p1 = float(data.get('p1', 0.0))
+        p2 = float(data.get('p2', 0.0))
+        use_tangential = abs(p1) > 1e-9 or abs(p2) > 1e-9
+        self.checkBox_use_tangential.setChecked(use_tangential)
+        self.doubleSpinBox_p1.setValue(p1)
+        self.doubleSpinBox_p2.setValue(p2)
+
+        # Projection type from projectiontype field
+        projection_type = str(data.get('projectiontype', '')).lower()
+        if 'equirect' in projection_type:
+            self.comboBox_projection.setCurrentIndex(1)
+        elif 'stereo' in projection_type:
+            self.comboBox_projection.setCurrentIndex(2)
+        else:
+            self.comboBox_projection.setCurrentIndex(0)
+
     def get_modified_parameters(self) -> dict:
         """
         Get the modified parameters from UI.
@@ -450,49 +573,51 @@ class CameraModificationDialog(QtWidgets.QDialog):
             return False
         
         try:
+            from sudrabainiemakoni.cloudimage_camera import camera_from_dict
+
             params = self.get_modified_parameters()
-            
-            # Apply focal lengths and center to camera_enu
-            self.camera.camera_enu.focallength_x_px = params['fx']
-            self.camera.camera_enu.focallength_y_px = params['fy']
-            self.camera.camera_enu.center_x_px = params['cx']
-            self.camera.camera_enu.center_y_px = params['cy']
-            
-            # Apply orientation
-            # Convert elevation back to tilt (tilt = elevation + 90)
+            image_size = self.camera.image_size
+
+            if params['use_rational']:
+                distortion_type = 'rationaldistortionlimited'
+            else:
+                distortion_type = 'brownlensdistortionlimited'
+
             tilt = params['elevation'] + 90
-            
-            self.camera.camera_enu.heading_deg = params['azimuth']
-            self.camera.camera_enu.tilt_deg = tilt
-            self.camera.camera_enu.roll_deg = params['rotation']
-            
-            # Apply distortion parameters directly to camera_enu
-            self.camera.camera_enu.k1 = params['k1']
-            self.camera.camera_enu.k2 = params['k2']
-            self.camera.camera_enu.k3 = params['k3']
-            self.camera.camera_enu.k4 = params['k4']
-            self.camera.camera_enu.k5 = params['k5']
-            self.camera.camera_enu.k6 = params['k6']
+            variables = {
+                'focallength_x_px': params['fx'],
+                'focallength_y_px': params['fy'],
+                'center_x_px': params['cx'],
+                'center_y_px': params['cy'],
+                'image_width_px': image_size[0],
+                'image_height_px': image_size[1],
+                'heading_deg': params['azimuth'],
+                'tilt_deg': tilt,
+                'roll_deg': params['rotation'],
+                'pos_x_m': 0.0,
+                'pos_y_m': 0.0,
+                'elevation_m': 0.0,
+                'k1': params['k1'],
+                'k2': params['k2'],
+                'k3': params['k3'],
+                'k4': params['k4'],
+                'k5': params['k5'],
+                'k6': params['k6'],
+                'p1': params['p1'],
+                'p2': params['p2'],
+                'distortiontype': distortion_type,
+                'projectiontype': params['projection'],
+            }
 
-            # Apply tangential distortion if supported
-            if hasattr(self.camera.camera_enu.lens, 'p1'):
-                self.camera.camera_enu.p1 = params['p1']
-                self.camera.camera_enu.p2 = params['p2']
-            elif params['use_tangential'] and (abs(params['p1']) > 1e-9 or abs(params['p2']) > 1e-9):
-                print("Warning: Current distortion model does not support tangential distortion (p1, p2)")
-            
-            # Apply projection type (requires recreating camera with new projection)
-            if params['projection'] != self.original_params.get('projection', 'rectilinear'):
-                print(f"Note: Projection type change to {params['projection']} requires camera recalibration")
+            self.camera.camera_enu = camera_from_dict(variables)
 
-            # Update the ECEF camera using the proper method
             if self.cloudimage is not None:
                 self.camera.camera_ecef = self.camera.camera_ecef_from_camera_enu(self.camera.camera_enu, self.cloudimage.location)
             else:
                 print("Warning: Cannot update ECEF camera without cloudimage location")
 
             return True
-            
+
         except Exception as e:
             print(f"Error applying camera parameters: {e}")
             return False
@@ -548,6 +673,8 @@ class CameraModificationDialog(QtWidgets.QDialog):
             return
         
         # Handle camera creation or modification
+        print('accept: self.camera is', self.camera)
+        print('accept: self.camera.camera_enu is', self.camera.camera_enu if self.camera is not None else None)
         if self.camera is None:
             # Create new camera
             if self.cloudimage is None:
@@ -588,42 +715,59 @@ class CameraModificationDialog(QtWidgets.QDialog):
     def create_camera_from_parameters(self, cloudImage):
         """
         Create a new camera from the dialog parameters.
-        
+
         Args:
             cloudImage: CloudImage object needed for camera creation
-            
+
         Returns:
             Camera object created from manual parameters, or None if failed
         """
         try:
-            from sudrabainiemakoni.cloudimage_camera import Camera
+            from sudrabainiemakoni.cloudimage_camera import Camera, camera_from_dict
 
             params = self.get_modified_parameters()
-
             image_size = (cloudImage.imagearray.shape[1], cloudImage.imagearray.shape[0])
-            camera = Camera.from_manual_parameters(
-                image_size=image_size,
-                location=cloudImage.location,
-                fx=params['fx'],
-                fy=params['fy'],
-                cx=params['cx'],
-                cy=params['cy'],
-                azimuth=params['azimuth'],
-                elevation=params['elevation'],
-                rotation=params['rotation'],
-                k1=params['k1'],
-                k2=params['k2'],
-                k3=params['k3'],
-                k4=params.get('k4', 0.0),
-                k5=params.get('k5', 0.0),
-                k6=params.get('k6', 0.0),
-                p1=params.get('p1', 0.0),
-                p2=params.get('p2', 0.0),
-                projection=params['projection']
-            )
-            
+
+            # Determine distortion type name from checkbox state
+            if params['use_rational']:
+                distortion_type = 'rationaldistortionlimited'
+            else:
+                distortion_type = 'brownlensdistortionlimited'
+
+            # Build a ct camera dict using raw tilt/heading/roll so camera_from_dict
+            # sets all parameters correctly (elevation → tilt conversion done here)
+            tilt = params['elevation'] + 90
+            variables = {
+                'focallength_x_px': params['fx'],
+                'focallength_y_px': params['fy'],
+                'center_x_px': params['cx'],
+                'center_y_px': params['cy'],
+                'image_width_px': image_size[0],
+                'image_height_px': image_size[1],
+                'heading_deg': params['azimuth'],
+                'tilt_deg': tilt,
+                'roll_deg': params['rotation'],
+                'pos_x_m': 0.0,
+                'pos_y_m': 0.0,
+                'elevation_m': 0.0,
+                'k1': params['k1'],
+                'k2': params['k2'],
+                'k3': params['k3'],
+                'k4': params['k4'],
+                'k5': params['k5'],
+                'k6': params['k6'],
+                'p1': params['p1'],
+                'p2': params['p2'],
+                'distortiontype': distortion_type,
+                'projectiontype': params['projection'],
+            }
+
+            camera = Camera(image_size)
+            camera.camera_enu = camera_from_dict(variables)
+            camera.camera_ecef = camera.camera_ecef_from_camera_enu(camera.camera_enu, cloudImage.location)
+
             return camera
-            
+
         except Exception as e:
             print(f"Error creating camera from parameters: {e}")
             return None

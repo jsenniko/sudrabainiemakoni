@@ -389,7 +389,7 @@ class ControlPointDigitizer:
                 
                 height_km = llh[2][0] / 1000.0
                 ray_distance = rayminimaldistance[0]
-                print(f'Pair {correspondence_idx + 1}: Height {height_km:.1f}km, Ray distance {ray_distance:.1f}m')
+                print(f'Pair {correspondence_idx + 1}: Lon {llh[1][0]:.5f}, Lat {llh[0][0]:.5f}, Height {height_km:.1f}km, Ray distance {ray_distance:.1f}m')
                     
         except Exception as e:
             print(f"Error calculating height for pair {correspondence_idx + 1}: {e}")

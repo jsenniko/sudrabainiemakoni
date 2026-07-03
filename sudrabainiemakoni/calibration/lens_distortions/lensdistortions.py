@@ -113,9 +113,9 @@ class RationalDistortionLimited(BrownLensDistortionLimited):
             k1=Parameter(k1, default=0, range=(0, None), type=TYPE_DISTORTION),
             k2=Parameter(k2, default=0, range=(0, None), type=TYPE_DISTORTION),
             k3=Parameter(k3, default=0, range=(0, None), type=TYPE_DISTORTION),
-            k4=Parameter(k1, default=0, range=(0, None), type=TYPE_DISTORTION),
-            k5=Parameter(k2, default=0, range=(0, None), type=TYPE_DISTORTION),
-            k6=Parameter(k3, default=0, range=(0, None), type=TYPE_DISTORTION),
+            k4=Parameter(k4, default=0, range=(0, None), type=TYPE_DISTORTION),
+            k5=Parameter(k5, default=0, range=(0, None), type=TYPE_DISTORTION),
+            k6=Parameter(k6, default=0, range=(0, None), type=TYPE_DISTORTION),
         )
         for name in self.parameters.parameters:
             self.parameters.parameters[name].callback = self._init_inverse
@@ -143,7 +143,7 @@ class RationalDistortionLimited(BrownLensDistortionLimited):
 
     def _convert_radius_orig(self, r):
         r2 = r**2
-        return r*(1 + r2*(self.parameters.k1 + r2*(self.parameters.k2 * + r2 *self.parameters.k3)))/(1 + r2*(self.parameters.k4 + r2*(self.parameters.k5 + r2 * self.parameters.k6)))
+        return r*(1 + r2*(self.parameters.k1 + r2*(self.parameters.k2 + r2 *self.parameters.k3)))/(1 + r2*(self.parameters.k4 + r2*(self.parameters.k5 + r2 * self.parameters.k6)))
 
 
 

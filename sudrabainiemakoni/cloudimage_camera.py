@@ -73,6 +73,43 @@ def save_camera(camera, filename):
     with open(filename, "w") as fp:
         fp.write(json.dumps(export_dict, indent=4))
 
+def camera_from_dict(variables):
+    """Create a cameratransform Camera from a parameter dictionary.
+
+    Selects distortion class from 'distortiontype' key if present, otherwise
+    infers it from which distortion keys are present in the dict.
+    """
+    if 'projectiontype' in variables:
+        projection_class = cameraprojections.projection_by_name(variables['projectiontype'])
+    else:
+        projection_class = ct.RectilinearProjection
+
+    distortion_name = variables.get('distortiontype', None)
+    if distortion_name is None:
+        if any(k in variables for k in ('k4', 'k5', 'k6')):
+            if 'p1' in variables or 'p2' in variables:
+                from sudrabainiemakoni.calibration.lens_distortions.cv2_lens_distortion import OpenCVBrownLensDistortion
+                distortion_class = OpenCVBrownLensDistortion
+            else:
+                distortion_class = RationalDistortionLimited
+        else:
+            distortion_class = BrownLensDistortionLimited
+    else:
+        distortion_class = distortion_by_name(distortion_name)
+
+    camera = ct.Camera(
+        projection_class(),
+        ct.SpatialOrientation(pos_x_m=0.0, pos_y_m=0.0, elevation_m=0.0),
+        distortion_class()
+    )
+    for key, value in variables.items():
+        if key not in ('projectiontype', 'distortiontype'):
+            try:
+                setattr(camera, key, value)
+            except Exception:
+                pass
+    return camera
+
 def get_azimuth_elevation_rotation(camera_enu):
     if camera_enu.tilt_deg<0:
         azimuth =180+camera_enu.heading_deg if camera_enu.heading_deg<0 else camera_enu.heading_deg-180

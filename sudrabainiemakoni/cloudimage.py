@@ -97,6 +97,10 @@ class CloudImage:
         if not hasattr(self, 'xxx') or self.xxx is None or reload:
             print('Loading image:', os.path.split(self.filename)[1])
             self.xxx = iio.imread(self.filename)
+            if not hasattr(self, 'camera'):
+                image_size = (self.imagearray.shape[1], self.imagearray.shape[0])
+                self.camera = Camera(image_size)
+
     def imageArrayGrid(self):
         return np.meshgrid(np.arange(self.imagearray.shape[1]),np.arange(self.imagearray.shape[0]))
 
@@ -486,10 +490,16 @@ class CloudImagePair:
             max_intrinsic_error (in km height/px)
             max_epiline_distance_error (in km height)
         '''
+        # TODO: cameratransform ray.py was patched manually in site-packages to fix NumPy 2.x incompatibility
+        # (np.linalg.solve now requires b shape (N,M,K) not (N,M); fixed in intersectionOfTwoLines and distanceOfTwoLines).
+        # Before upgrading cameratransform, verify it includes this fix and check for other API incompatibilities.
+        # Patched file: cameratransform/ray.py lines ~132 and ~176.
         self.InitCameraGroup()
         z1=75
         z2=90
         cgr = self.cameraGroup
+        print(corresponding1)
+        print(corresponding2)
         xyz=cgr.spaceFromImages(corresponding1, corresponding2)
         rayminimaldistance=cgr.discanteBetweenRays(corresponding1, corresponding2)
         llh = pymap3d.ecef2geodetic(xyz[:,0],xyz[:,1],xyz[:,2])
