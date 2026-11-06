@@ -321,7 +321,7 @@ def optimize_camera_cv2(camera, enu_unit_coords, pxls, distortion=6, optimize_fo
     if (fx<0) and (fy<0):
         fx = -fx
         fy = -fy
-        rr['roll_deg'] = rr['roll_deg'] - 180.0
+        cv2_cam['roll_deg'] = cv2_cam['roll_deg'] - 180.0
 
 
     camnew.image_width_px = w
